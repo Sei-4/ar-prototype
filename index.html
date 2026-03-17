@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Accounts Receivable</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8fafc;color:#1e293b;-webkit-font-smoothing:antialiased;font-size:13px}
+button{font-family:inherit;cursor:pointer}input,select{font-family:inherit}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}::-webkit-scrollbar-track{background:transparent}
+svg.ic{display:inline-block;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* HEADER */
+.header{background:#fff;border-bottom:1px solid #e2e8f0;padding:14px 20px}
+.header h1{font-size:18px;font-weight:700;color:#1e293b}
+.header-stats{display:flex;gap:20px;margin-top:6px;font-size:13px;font-weight:600}
+.stat-overdue{color:#dc2626}.stat-open{color:#1e293b}.stat-credit{color:#059669}
+.stat-label{font-weight:400;color:#64748b;font-size:12px;margin-right:4px}
+
+/* BUCKETS */
+.bucket-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px 20px 8px}
+.bucket{border-radius:12px;text-align:left;border:2px solid transparent;overflow:hidden;cursor:pointer;transition:all .2s}
+.bucket:hover{filter:brightness(0.97)}
+.bucket-head{padding:10px 16px 6px;font-size:13px;font-weight:700}
+.bucket-body{padding:4px 16px 14px}
+.bucket-row{display:flex;justify-content:space-between;align-items:flex-start}
+.bucket-val{font-size:20px;font-weight:800}
+.bucket-label{font-size:11px;opacity:.7}
+.bucket-footer{display:flex;align-items:center;gap:6px;padding-top:8px;margin-top:8px;font-size:11px;opacity:.7}
+.bucket-footer strong{opacity:1}
+.bucket.active{box-shadow:0 0 0 3px rgba(0,0,0,.12);transform:scale(1.02)}
+.b-green{background:#dcfce7;border-color:#dcfce7}.b-green .bucket-head,.b-green .bucket-val,.b-green .bucket-footer strong{color:#15803d}.b-green .bucket-label,.b-green .bucket-footer{color:#166534}
+.b-amber{background:#fef3c7;border-color:#fef3c7}.b-amber .bucket-head,.b-amber .bucket-val,.b-amber .bucket-footer strong{color:#b45309}.b-amber .bucket-label,.b-amber .bucket-footer{color:#92400e}
+.b-orange{background:#ffedd5;border-color:#ffedd5}.b-orange .bucket-head,.b-orange .bucket-val,.b-orange .bucket-footer strong{color:#c2410c}.b-orange .bucket-label,.b-orange .bucket-footer{color:#9a3412}
+.b-red{background:#fee2e2;border-color:#fee2e2}.b-red .bucket-head,.b-red .bucket-val,.b-red .bucket-footer strong{color:#dc2626}.b-red .bucket-label,.b-red .bucket-footer{color:#991b1b}
+.bucket.active.b-green{border-color:#16a34a}.bucket.active.b-amber{border-color:#d97706}.bucket.active.b-orange{border-color:#ea580c}.bucket.active.b-red{border-color:#dc2626}
+
+/* SEARCH / FILTER ROW */
+.search-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 20px}
+.toolbar-left{display:flex;align-items:center;gap:8px;min-height:32px}
+.batch-dropdown-wrap{position:relative;display:inline-flex;align-items:center}
+.batch-dropdown{appearance:none;-webkit-appearance:none;font-family:inherit;font-size:12px;font-weight:500;padding:6px 32px 6px 12px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#475569;cursor:pointer;transition:all .15s}
+.batch-dropdown:not(:disabled):hover{border-color:#94a3b8;background:#f8fafc}
+.batch-dropdown:disabled{opacity:.45;cursor:not-allowed;background:#f8fafc}
+.batch-dropdown:not(:disabled):focus{outline:none;border-color:#93c5fd;box-shadow:0 0 0 2px rgba(59,130,246,.12)}
+.batch-dropdown-arrow{position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:#64748b}
+.batch-sel-count{font-size:11px;font-weight:600;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;border-radius:99px;padding:1px 7px;white-space:nowrap}
+.toolbar-right{display:flex;align-items:center;gap:8px}
+.search-wrap{position:relative;flex:1;max-width:320px}
+.search-wrap input{width:100%;padding:6px 12px 6px 32px;font-size:13px;border:1px solid #cbd5e1;border-radius:8px;outline:none;background:#fff}
+.search-wrap input:focus{border-color:#93c5fd;box-shadow:0 0 0 2px #bfdbfe}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:14px}
+.filter-btn{display:flex;align-items:center;gap:4px;padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#475569}
+.filter-btn.active{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8}
+.filter-btn .count{background:#2563eb;color:#fff;font-size:10px;border-radius:99px;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;margin-left:2px}
+.clear-btn{font-size:12px;color:#64748b;background:none;border:none;text-decoration:underline}
+
+/* FILTER PANEL */
+.filter-panel{margin:4px 20px 0;padding:12px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;display:none}
+.filter-panel.show{display:block}
+.filter-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:8px}
+.filter-section-label{font-size:11px;font-weight:600;color:#64748b;margin-bottom:6px}
+.chip-row{display:flex;flex-wrap:wrap;gap:4px}
+.chip{padding:2px 10px;font-size:11px;border-radius:99px;border:1px solid #cbd5e1;background:#fff;color:#475569;cursor:pointer;transition:all .15s}
+.chip.active{background:#2563eb;border-color:#2563eb;color:#fff}
+.range-row{display:flex;gap:24px;padding-top:8px;margin-top:8px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
+.range-row input{width:80px;font-size:12px;border:1px solid #cbd5e1;border-radius:4px;padding:4px 8px;outline:none}
+.range-row input:focus{border-color:#93c5fd}
+.range-row input[type=date]{width:130px}
+
+/* TABLE */
+.table-wrap{margin:8px 20px 24px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.group-header{display:flex;align-items:center;gap:8px;margin:12px 20px 8px}
+.group-header span.glabel{font-size:13px;font-weight:700;color:#334155}
+.group-header span.meta{font-size:11px;color:#94a3b8}
+.group-header .line{flex:1;border-top:1px solid #e2e8f0;margin-left:8px}
+table{width:100%;border-collapse:collapse;min-width:1350px}
+thead th{padding:10px 8px;text-align:left;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;cursor:pointer;user-select:none;border-bottom:1px solid #e2e8f0;background:#f8fafc}
+thead th:hover{color:#334155}
+thead th .sort{color:#2563eb;font-size:10px;margin-left:2px}
+thead th .sort-hint{visibility:hidden;color:#94a3b8;font-size:10px;margin-left:2px}
+thead th:hover .sort-hint{visibility:visible}
+tbody td{padding:8px 10px;vertical-align:middle}
+tbody tr{border-bottom:1px solid #f1f5f9;transition:background .1s;position:relative}
+.col-sticky{position:sticky;z-index:1}
+thead .col-sticky{z-index:3;background:#f8fafc}
+tbody .col-sticky{background:#fff}
+tbody tr:hover .col-sticky{background:#f8fafc}
+tbody tr.selected .col-sticky{background:#eff6ff}
+.loc-parent-row .col-sticky{background:#fafbff}
+.loc-sub-row .col-sticky{background:#f5f7ff}
+.loc-sub-row:hover .col-sticky{background:#eef1ff}
+tbody tr:hover{background:#f8fafc}
+tbody tr.selected{background:#eff6ff}
+.name-overdue{font-weight:700;color:#1e293b;white-space:nowrap;font-size:13px}
+.name-normal{font-weight:600;color:#1e293b;white-space:nowrap;font-size:13px}
+.badge{display:inline-block;padding:1px 6px;font-size:11px;font-weight:500;border-radius:4px;white-space:nowrap;margin:1px}
+.svc-badge{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:4px;font-size:11px;font-weight:700;margin-right:3px;position:relative}
+.svc-badge .tip{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);padding:4px 8px;background:#1e293b;color:#fff;font-size:11px;border-radius:4px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;z-index:50;font-weight:400}
+.svc-badge:hover .tip{opacity:1}
+.comm-icon{position:relative;cursor:default;font-size:15px}
+.comm-icon .tip{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);padding:4px 8px;background:#1e293b;color:#fff;font-size:11px;border-radius:4px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;z-index:50}
+.comm-icon:hover .tip{opacity:1}
+.contact-cell{cursor:pointer;position:relative}
+.contact-cell .edit-hint{position:absolute;top:-2px;right:-2px;opacity:0;transition:opacity .15s;background:#f1f5f9;border-radius:4px;padding:1px 3px;font-size:10px}
+.contact-cell:hover .edit-hint{opacity:1}
+.contact-name{font-size:12px;font-weight:500;color:#1e293b}
+.contact-email{font-size:11px;color:#2563eb}
+.contact-phone{font-size:11px;color:#64748b}
+.edit-form input{width:100%;font-size:12px;border:1px solid #93c5fd;border-radius:4px;padding:2px 6px;margin-bottom:3px;outline:none}
+.edit-btns{display:flex;gap:4px;margin-top:2px}
+.edit-btns button{font-size:11px;padding:2px 8px;border-radius:4px;border:none}
+.edit-save{background:#2563eb;color:#fff}.edit-cancel{background:#e2e8f0;color:#475569}
+.money{font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;color:#1e293b}
+.money-overdue{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:#dc2626}
+.money-credit{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:#059669}
+.money-open{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:#1e293b}
+.dash{color:#d1d5db}
+.note-cell{max-width:180px;cursor:pointer}
+.note-cell:hover .note-text{color:#2563eb;text-decoration:underline}
+.note-text{font-size:12px;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.note-date{font-size:11px;color:#94a3b8;margin-top:2px}
+.billing-note-icon{color:#94a3b8;font-size:15px;cursor:pointer;position:relative;display:inline-block}
+.billing-note-icon.has-notes{color:#2563eb}
+.billing-note-icon .tip{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);padding:6px 10px;background:#1e293b;color:#fff;font-size:12px;border-radius:6px;white-space:pre-line;opacity:0;pointer-events:none;transition:opacity .15s;z-index:50;max-width:260px;text-align:left;line-height:1.4}
+.billing-note-icon:hover .tip{opacity:1}
+.status-pill{font-size:11px;font-weight:500;padding:2px 8px;border-radius:9999px;white-space:nowrap;display:inline-block;text-align:center}
+.status-pill-wrapped{white-space:normal;line-height:1.4}
+.status-active{background:#dcfce7;color:#15803d}
+.status-suspended-np{background:#fee2e2;color:#991b1b}
+.status-suspended-v{background:#fef3c7;color:#92400e}
+.empty-msg{padding:40px 0;text-align:center;color:#94a3b8;font-size:13px}
+
+input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:#2563eb}
+
+/* BATCH ACTIONS (inline toolbar) */
+.batch-count{font-size:13px;font-weight:600;color:#1e293b}
+.batch-divider{width:1px;height:16px;background:#e2e8f0}
+.batch-btn{font-size:12px;padding:5px 12px;border-radius:8px;color:#fff;border:none;font-weight:500;cursor:pointer}
+.batch-close{background:none;border:none;color:#94a3b8;font-size:16px;line-height:1;cursor:pointer;padding:0 2px}
+.batch-close:hover{color:#1e293b}
+
+/* ACTION COLUMN BUTTONS */
+.action-btn{font-size:11px;font-weight:500;padding:4px 10px;border-radius:6px;border:1px solid;cursor:pointer;white-space:nowrap;transition:background .12s}
+.action-btn-view{background:#f8fafc;color:#1e293b;border-color:#cbd5e1}
+.action-btn-view:hover{background:#f1f5f9}
+.action-btn-resume{background:#d1fae5;color:#065f46;border-color:#6ee7b7}
+.action-btn-resume:hover{background:#a7f3d0}
+.action-btn-pay{background:#dbeafe;color:#1e40af;border-color:#93c5fd}
+.action-btn-pay:hover{background:#bfdbfe}
+.kebab-wrap{position:relative;display:inline-flex}
+.kebab-btn{background:none;border:1px solid #cbd5e1;border-radius:6px;padding:2px 7px;cursor:pointer;display:flex;align-items:center;justify-content:center;height:28px;color:#64748b}
+.kebab-btn:hover{background:#f1f5f9;border-color:#94a3b8}
+.kebab-menu{position:absolute;right:0;top:calc(100% + 4px);background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:200;min-width:150px;padding:4px}
+.kebab-item{display:block;width:100%;text-align:left;padding:7px 12px;font-size:12px;font-weight:500;cursor:pointer;border:none;background:none;border-radius:5px;color:#1e293b;white-space:nowrap;font-family:inherit}
+.kebab-item:hover{background:#f8fafc}
+.kebab-item-warn{color:#dc2626}
+.kebab-item-warn:hover{background:#fee2e2}
+.batch-close{background:none;border:none;color:#94a3b8;font-size:14px;margin-left:4px}
+.batch-close:hover{color:#fff}
+
+/* ===== SIDE PANEL ===== */
+.panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.08);z-index:49;opacity:0;pointer-events:none;transition:opacity .2s}
+.panel-overlay.show{opacity:1;pointer-events:auto}
+.panel{position:fixed;top:0;right:0;bottom:0;width:50vw;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,.12);border-left:1px solid #e2e8f0;z-index:50;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease-out;overflow:hidden;contain:layout}
+.panel.show{transform:translateX(0)}
+
+.panel-header{padding:14px 20px 0;border-bottom:1px solid #e5e7eb;flex-shrink:0}
+.panel-header-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.panel-name-block{flex:1;min-width:0}
+.panel-title-with-labels{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap}
+.panel-title-with-labels h2{font-size:16px;font-weight:700;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+.panel-lbl-inline{font-size:10px;font-weight:500;padding:2px 8px;border-radius:9999px;background:#eff6ff;color:#1d4ed8;white-space:nowrap;margin-top:2px}
+.panel-header-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.panel-status{font-size:10px;font-weight:600;padding:2px 8px;border-radius:9999px;border:1px solid}
+.ps-active{background:#ecfdf5;color:#047857;border-color:#a7f3d0}
+.ps-snp{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
+.ps-sv{background:#fffbeb;color:#b45309;border-color:#fde68a}
+.panel-contact-info{display:flex;flex-direction:column;gap:3px;margin-top:6px;margin-bottom:12px}
+.panel-contact-info a{font-size:12px;color:#4b5563;text-decoration:none;display:flex;align-items:center;gap:5px}
+.panel-contact-info a:hover{color:#2563eb;text-decoration:underline}
+.close-btn{padding:4px;border-radius:4px;border:none;background:none;cursor:pointer;color:#9ca3af}
+.close-btn:hover{background:#f3f4f6}
+.panel-tabs{display:flex;border-top:1px solid #f3f4f6}
+.panel-tab{padding:10px 14px;font-size:12px;font-weight:500;border:none;background:none;border-bottom:2px solid transparent;color:#9ca3af;cursor:pointer;white-space:nowrap}
+.panel-tab:hover{color:#6b7280}
+.panel-tab.active{border-bottom-color:#111827;color:#111827}
+.panel-tab-body{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.panel-scroll{flex:1;overflow-y:auto}
+
+/* Overview tab */
+.overview-inner{padding:20px;display:flex;flex-direction:column;gap:20px}
+.sh{display:flex;align-items:center;gap:6px;margin-bottom:12px}
+.sh h3{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.sh.violet svg{color:#a78bfa}.sh.violet h3{color:#8b5cf6}
+.sh.blue svg{color:#60a5fa}.sh.blue h3{color:#3b82f6}
+.sh.gray svg{color:#9ca3af}.sh.gray h3{color:#9ca3af}
+.hl-box{background:rgba(139,92,246,.05);border:1px solid rgba(139,92,246,.15);border-radius:8px;padding:12px}
+.hl-list{list-style:none;display:flex;flex-direction:column;gap:6px}
+.hl-list li{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#374151;line-height:1.5}
+.hl-dot{width:4px;height:4px;border-radius:50%;background:#a78bfa;margin-top:7px;flex-shrink:0}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.blk{border-radius:8px;padding:12px}
+.blk.bl{background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15)}
+.blk.gr{background:#f9fafb}
+.bh{display:flex;align-items:center;gap:6px;margin-bottom:10px}
+.bh span{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.bh.bl svg,.bh.bl span{color:#60a5fa}
+.bh.gr svg,.bh.gr span{color:#9ca3af}
+.cn{font-size:14px;font-weight:500;color:#111827}
+.ct{font-size:11px;color:#6b7280;margin-top:2px}
+.ci{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.cr{font-size:11px;color:#4b5563;display:flex;align-items:center;gap:6px}
+.cr svg{color:#9ca3af;flex-shrink:0}
+.nt{font-size:12px;color:#374151;line-height:1.6}
+.tb{background:#f9fafb;border-radius:8px;padding:12px;margin-top:12px}
+.tb-title{font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+.tg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px 24px;font-size:12px}
+.tg .tl{color:#9ca3af}.tg .tv{font-weight:500;color:#1f2937}
+.warn{margin-top:10px;display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px}
+.warn svg{color:#f59e0b;flex-shrink:0}
+.warn span{font-size:11px;color:#b45309}
+.warn strong{font-weight:600}
+
+/* Mini aging buckets in panel */
+.mini-bucket-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.mini-bucket{border-radius:8px;border:2px solid transparent;overflow:hidden}
+.mini-bucket-head{padding:7px 10px 4px;font-size:11px;font-weight:700}
+.mini-bucket-body{padding:2px 10px 10px}
+.mini-bucket-val{font-size:16px;font-weight:800}
+.mini-bucket-sub{font-size:10px;opacity:.75;margin-top:2px}
+
+/* Payment Policy grid */
+.policy-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px}
+.policy-label{font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.policy-value{font-size:12px;font-weight:500;color:#1f2937}
+
+/* Editable notes */
+.notes-section{border:1px solid #e5e7eb;border-radius:8px;overflow:hidden}
+.notes-section-header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#f9fafb;border-bottom:1px solid #f3f4f6}
+.notes-section-title{font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em}
+.notes-edit-btn{font-size:11px;font-weight:500;color:#6b7280;background:none;border:none;cursor:pointer;padding:2px 8px;border-radius:4px}
+.notes-edit-btn:hover{background:#e5e7eb;color:#1f2937}
+.notes-body{padding:12px}
+.notes-text{font-size:12px;color:#374151;line-height:1.6;white-space:pre-wrap}
+.notes-empty{font-size:12px;color:#9ca3af;font-style:italic}
+.notes-textarea{width:100%;font-size:12px;border:1px solid #93c5fd;outline:none;resize:none;font-family:inherit;line-height:1.6;color:#374151;background:#fff;border-radius:6px;padding:8px 10px;box-shadow:0 0 0 2px rgba(59,130,246,.1)}
+.notes-save-row{display:flex;justify-content:flex-end;gap:6px;margin-top:8px}
+
+/* Phone input formatter */
+.phone-input-wrap{position:relative}
+.phone-input-placeholder{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:12px;color:#d1d5db;pointer-events:none;letter-spacing:.5px}
+
+/* Contacts tab */
+.contacts-toolbar{display:flex;align-items:center;gap:8px;padding:10px 20px;border-bottom:1px solid #f3f4f6;flex-shrink:0}
+.contacts-search-wrap{position:relative;flex:1}
+.contacts-search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#9ca3af}
+.contacts-search-input{width:100%;font-size:12px;padding:6px 10px 6px 30px;border:1px solid #e2e8f0;border-radius:7px;outline:none;font-family:inherit}
+.contacts-search-input:focus{border-color:#93c5fd;box-shadow:0 0 0 2px rgba(59,130,246,.1)}
+.tab-list-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px 10px;border-bottom:1px solid #f3f4f6;flex-shrink:0}
+.tab-list-title{font-size:12px;font-weight:600;color:#6b7280}
+.tab-add-btn{font-size:12px;font-weight:500;padding:5px 12px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;color:#1f2937;cursor:pointer;display:flex;align-items:center;gap:5px}
+.tab-add-btn:hover{background:#f9fafb}
+.contact-row{display:flex;align-items:flex-start;gap:12px;padding:12px 20px;border-bottom:1px solid #f3f4f6;position:relative}
+.contact-row.pinned{border-left:3px solid #2563eb;background:rgba(239,246,255,.4)}
+.contact-row.disabled{opacity:.45;background:#fafafa}
+.contact-avatar{width:34px;height:34px;border-radius:50%;background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#6b7280;flex-shrink:0;margin-top:1px}
+.contact-pin-badge{font-size:9px;font-weight:600;padding:1px 6px;border-radius:99px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;white-space:nowrap;margin-left:6px}
+.contact-name-row{display:flex;align-items:center}
+.contact-name{font-size:13px;font-weight:600;color:#111827}
+.contact-role{font-size:11px;color:#6b7280;margin-top:1px}
+.contact-info-row{display:flex;flex-direction:column;gap:2px;margin-top:6px}
+.contact-info-row a{font-size:11px;color:#4b5563;text-decoration:none;display:flex;align-items:center;gap:4px}
+.contact-info-row a.email-link{color:#2563eb}
+.contact-info-row a:hover{text-decoration:underline}
+.contact-row-actions{position:absolute;top:12px;right:20px;display:flex;gap:4px;opacity:0;transition:opacity .15s}
+.contact-row:hover .contact-row-actions{opacity:1}
+.contact-act-btn{font-size:11px;font-weight:500;padding:3px 8px;border-radius:5px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;color:#4b5563}
+.contact-act-btn:hover{background:#f3f4f6}
+.contact-act-btn.danger{color:#dc2626;border-color:#fecaca}
+.contact-act-btn.danger:hover{background:#fef2f2}
+.add-contact-form{padding:12px 20px;background:#f9fafb;border-bottom:1px solid #e5e7eb}
+.add-contact-form .fc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.add-contact-form input{width:100%;font-size:12px;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;outline:none;font-family:inherit}
+.add-contact-form input:focus{border-color:#93c5fd;box-shadow:0 0 0 2px rgba(59,130,246,.1)}
+.section-divider{padding:8px 20px;background:#f9fafb;border-bottom:1px solid #f3f4f6;border-top:1px solid #f3f4f6;font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em}
+
+/* Locations tab — table format */
+.loc-table{width:100%;border-collapse:collapse;font-size:12px}
+.loc-table thead th{padding:8px 10px;text-align:left;font-size:10px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #e5e7eb;background:#f9fafb;white-space:nowrap}
+.loc-table thead th.loc-col-loc{width:35%}
+.loc-table thead th.loc-col-labels{width:18%}
+.loc-table thead th.loc-col-num{width:11%;text-align:center}
+.loc-table thead th.loc-col-status{width:13%;text-align:center}
+.loc-table tbody td{padding:9px 10px;border-bottom:1px solid #f3f4f6;vertical-align:middle;font-size:12px}
+.loc-table tbody td.loc-col-num{text-align:center}
+.loc-table tbody td.loc-col-status{text-align:center}
+.loc-table tbody tr:last-child td{border-bottom:none}
+.loc-table tbody tr:hover td{background:#f8fafc}
+.location-name{font-size:13px;font-weight:600;color:#111827}
+.location-addr{font-size:11px;color:#2563eb;display:block;text-decoration:none;line-height:1.5;margin-top:2px}
+.location-addr:hover{text-decoration:underline}
+.location-labels{display:flex;gap:3px;flex-wrap:wrap;justify-content:center}
+.location-stat-val{font-size:13px;font-weight:600;color:#1f2937}
+.location-status-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.ls-active{background:#dcfce7;color:#15803d}
+.ls-inactive{background:#f3f4f6;color:#6b7280}
+.ls-hold{background:#fef3c7;color:#b45309}
+.ls-dns{background:#fee2e2;color:#b91c1c}
+
+/* Panel sticky bar */
+.panel-sticky{flex-shrink:0;border-top:1px solid #e5e7eb;background:#fff;padding:12px 20px;display:flex;gap:8px;align-items:center}
+.panel-pay-btn{flex:1;padding:10px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;background:#1f2937;color:#fff;text-align:center}
+.panel-pay-btn:hover{background:#374151}
+.panel-addnote-btn{flex:1;padding:10px;border-radius:8px;font-size:13px;font-weight:500;border:1px solid #e2e8f0;cursor:pointer;background:#fff;color:#1f2937;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.panel-addnote-btn:hover{background:#f9fafb}
+
+/* Activity tab */
+.act-search{padding:16px 20px 12px;flex-shrink:0}
+.act-sr{display:flex;gap:8px}
+.act-siw{position:relative;flex:1}
+.act-siw svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#9ca3af}
+.act-si{width:100%;font-size:12px;padding:8px 12px 8px 36px;border:1px solid #e5e7eb;border-radius:8px;outline:none}
+.act-si:focus{border-color:#93c5fd;box-shadow:0 0 0 2px rgba(59,130,246,.15)}
+.act-fb{display:flex;align-items:center;gap:6px;padding:8px 12px;font-size:12px;font-weight:500;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#4b5563;cursor:pointer}
+.act-fb:hover{background:#f9fafb}
+.act-fb.active{background:#1f2937;color:#fff;border-color:#1f2937}
+.act-fp{display:flex;align-items:center;gap:16px;padding:8px 20px;background:#f9fafb;border-radius:8px;margin:0 20px 12px;flex-wrap:wrap}
+.act-fp .fl{font-size:11px;color:#6b7280;font-weight:500;margin-right:6px}
+.act-fps{display:flex;gap:4px}
+.act-fpl{padding:4px 8px;border-radius:4px;font-size:11px;font-weight:500;border:1px solid #e5e7eb;background:#fff;color:#6b7280;cursor:pointer}
+.act-fpl:hover{background:#f3f4f6}
+.act-fpl.active{background:#1f2937;color:#fff;border-color:#1f2937}
+.act-fsel{font-size:11px;padding:4px 8px;border:1px solid #e5e7eb;border-radius:4px;background:#fff;outline:none}
+.act-nl{flex:1;overflow-y:auto;padding:0 20px 12px;display:flex;flex-direction:column;gap:8px}
+.nc{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-radius:8px;border:1px solid #f3f4f6;transition:all .4s}
+.nc:hover{background:rgba(249,250,251,.5);border-color:#e5e7eb}
+.nc.highlight{background:#eff6ff;border-color:#bfdbfe}
+.niw{padding:6px;background:#f3f4f6;border-radius:8px;flex-shrink:0;margin-top:2px;color:#6b7280}
+.nb{flex:1;min-width:0;padding-top:2px}
+.ns{font-size:12px;font-weight:600;color:#111827}
+.nd{font-size:12px;color:#4b5563;line-height:1.5;margin-top:2px}
+.nm{flex-shrink:0;text-align:right;padding-left:16px;padding-top:2px;min-width:100px}
+.na{font-size:11px;font-weight:500;color:#6b7280}
+.ndt{font-size:10px;color:#9ca3af;margin-top:2px}
+
+/* Add note */
+.panel-add{flex-shrink:0;border-top:1px solid #e5e7eb;background:#fff;position:relative}
+.panel-add-btns{padding:12px 20px}
+.panel-add-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;border-radius:8px;font-size:14px;font-weight:500;border:none;cursor:pointer;background:#1f2937;color:#fff}
+.panel-add-btn:hover{background:#374151}
+.panel-add-btn.open{background:#e5e7eb;color:#4b5563}
+.ano{position:absolute;bottom:100%;left:0;right:0;background:#fff;border-top:1px solid #e5e7eb;box-shadow:0 -4px 24px rgba(0,0,0,.08);padding:16px 20px;display:flex;flex-direction:column;gap:12px}
+.ano h4{font-size:12px;font-weight:600;color:#111827}
+.ano input,.ano textarea{width:100%;font-size:12px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;outline:none;font-family:inherit}
+.ano input:focus,.ano textarea:focus{border-color:#93c5fd;box-shadow:0 0 0 2px rgba(59,130,246,.15)}
+.ano textarea{resize:none;line-height:1.5}
+.ano-acts{display:flex;justify-content:flex-end;gap:8px}
+.cbtn{padding:10px 16px;border-radius:8px;font-size:12px;font-weight:500;border:none;background:#f3f4f6;color:#4b5563;cursor:pointer}
+.cbtn:hover{background:#e5e7eb}
+.sbtn{padding:10px 20px;border-radius:8px;font-size:12px;font-weight:500;border:none;background:#1f2937;color:#fff;cursor:pointer}
+.sbtn:hover{background:#374151}
+.hidden{display:none!important}
+/* Location-level billing rows */
+.loc-parent-row td{border-bottom:none!important}
+.loc-parent-row{background:#fafbff}
+.loc-billing-badge{font-size:9px;font-weight:600;padding:1px 6px;border-radius:4px;background:#ede9fe;color:#5b21b6;border:1px solid #ddd6fe;margin-left:6px;vertical-align:middle;white-space:nowrap}
+.loc-sub-row td{background:#f5f7ff;border-bottom:1px solid #eef0f9}
+.loc-sub-row:hover td{background:#eef1ff}
+.loc-sub-row:last-child td{border-bottom:2px solid #e2e8f0}
+
+.loc-sub-name{display:flex;align-items:center;gap:8px;padding-left:24px}/* Filter text inputs */
+.filter-text-input{width:100%;font-size:12px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;outline:none;font-family:inherit;margin-top:2px}
+.filter-text-input:focus{border-color:#93c5fd;box-shadow:0 0 0 2px rgba(59,130,246,.1)}
+/* Location Billing column */
+.loc-toggle-btn{background:none;border:none;padding:2px 4px;cursor:pointer;border-radius:4px;color:#818cf8;display:inline-flex;align-items:center;flex-shrink:0}
+.loc-toggle-btn:hover{background:#f0f0ff}
+.loc-expand-chevron{transition:transform .2s;stroke:#818cf8!important}
+.loc-expand-chevron.expanded{transform:rotate(180deg)}
+.loc-yes{font-size:11px;font-weight:600;color:#5b21b6;background:#ede9fe;border:1px solid #ddd6fe;border-radius:4px;padding:1px 7px}
+.loc-no{font-size:11px;color:#94a3b8}
+/* Panel header — location hierarchy */
+.panel-loc-sub{padding:0 20px 12px 20px;background:#f8faff;border-top:1px solid #eef0f9}
+.panel-loc-tree{display:flex;align-items:stretch}
+.panel-loc-stem{width:2px;background:#c7d2fe;border-radius:0 0 2px 2px;margin:0 14px 0 8px;flex-shrink:0}
+.panel-loc-content{flex:1;min-width:0;padding:10px 0 0}
+.panel-loc-name-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px}
+.panel-loc-name{font-size:13px;font-weight:600;color:#1e293b}
+.panel-loc-addr{font-size:11px;color:#64748b;margin-bottom:6px}
+.panel-loc-stats{display:flex;gap:14px;font-size:11px;color:#64748b}
+.panel-loc-stat-val{font-weight:600;color:#374151}
+/* Inline location cards */
+.loc-card{background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:10px}
+.loc-card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px}
+.loc-card-name{font-size:13px;font-weight:600;color:#111827}
+.loc-card-addr{font-size:12px;color:#2563eb;text-decoration:none;display:inline-block;margin-bottom:8px}
+.loc-card-addr:hover{text-decoration:underline}
+.loc-card-stats{display:flex;gap:16px;font-size:12px;color:#64748b}
+.loc-card-stat-val{font-weight:600;color:#374151}
+.loc-card-divider{border:none;border-top:1px solid #e5e7eb;margin:10px 0 8px}
+.loc-card-billing-label{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+.loc-card-billing-val{font-size:12px;font-weight:600;color:#1e293b}
+.loc-card-note{font-size:11px;color:#64748b;margin-top:8px;padding:6px 8px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;font-style:italic}
+/* Payment card items */
+.card-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:6px}
+.card-brand-pill{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;white-space:nowrap;letter-spacing:.03em;min-width:42px;text-align:center}
+.cb-visa{background:#1a1f71;color:#fff}.cb-mc{background:#eb001b;color:#fff}.cb-amex{background:#007bc1;color:#fff}.cb-disc{background:#e65c00;color:#fff}
+.card-meta{flex:1;min-width:0}
+.card-num{font-size:13px;font-weight:600;color:#1e293b}
+.card-sub{font-size:11px;color:#94a3b8;margin-top:1px}
+.card-default-badge{font-size:10px;font-weight:600;padding:1px 6px;border-radius:4px;background:#dcfce7;color:#166534;border:1px solid #bbf7d0;margin-left:6px;vertical-align:middle}
+.card-exp-warn{color:#d97706}
+.card-acts{display:flex;gap:4px;flex-shrink:0}
+.card-form{background:#f0f6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;margin-bottom:8px}
+.card-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.card-form input,.card-form select{font-size:12px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:5px;outline:none;font-family:inherit;width:100%;box-sizing:border-box}
+.card-form input:focus,.card-form select:focus{border-color:#93c5fd;box-shadow:0 0 0 2px rgba(59,130,246,.08)}
+/* Failed payment badge */
+.failed-pmt-badge{font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;white-space:nowrap}
+/* Column picker */
+.col-picker-wrap{position:relative}
+.col-picker-panel{display:none;position:absolute;right:0;top:calc(100% + 4px);background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.12);width:220px;z-index:200;padding:0}
+.col-picker-panel.show{display:block}
+.col-picker-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:600;color:#475569}
+.col-picker-header button{background:none;border:none;cursor:pointer;color:#94a3b8;padding:0;font-size:14px;line-height:1}
+.col-picker-list{padding:4px 0;max-height:340px;overflow-y:auto}
+.col-picker-item{display:flex;align-items:center;gap:8px;padding:5px 12px;cursor:pointer;font-size:13px;color:#334155;user-select:none}
+.col-picker-item:hover{background:#f8fafc}
+.col-picker-item input{cursor:pointer;accent-color:#3b82f6;flex-shrink:0}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+const SERVICE_MAP={D:"Dumpster",L:"Live Load",M:"Mini",R:"Routing"};
+const SERVICE_COLORS={D:"#3b82f6",L:"#8b5cf6",M:"#f59e0b",R:"#10b981"};
+const COMM_PREF={email:{label:"Email",icon:"✉️"},phone:{label:"Phone",icon:"📞"},mail:{label:"Mail",icon:"📬"},text:{label:"Text",icon:"💬"}};
+const BUSINESS_COLORS={Municipal:{bg:"#dbeafe",text:"#1e40af"},Government:{bg:"#fef3c7",text:"#92400e"},Restaurant:{bg:"#fce7f3",text:"#9d174d"},Commercial:{bg:"#d1fae5",text:"#065f46"},Industrial:{bg:"#e0e7ff",text:"#3730a3"}};
+const LABEL_COLORS={VIP:{bg:"#fef3c7",text:"#92400e",border:"#fbbf24"},"High Volume":{bg:"#dbeafe",text:"#1e40af",border:"#60a5fa"},Escalated:{bg:"#fee2e2",text:"#991b1b",border:"#f87171"},"Gov Contract":{bg:"#d1fae5",text:"#065f46",border:"#34d399"},"New Customer":{bg:"#e0e7ff",text:"#3730a3",border:"#818cf8"},"Payment Plan":{bg:"#f3e8ff",text:"#6b21a8",border:"#a78bfa"}};
+
+const customers=[
+  {id:1,name:"Acme Manufacturing Co.",contact:{name:"John Peterson",email:"jpeterson@acme.com",phone:"(555) 123-4567"},billingContact:{name:"John Peterson",title:"Accounts Payable Manager",email:"jpeterson@acme.com",phone:"(555) 234-5678"},accountContact:{name:"Sarah Johnson",title:"Operations Manager",email:"sjohnson@acme.com",phone:"(555) 123-4567"},services:["D","L"],businessType:"Industrial",labels:["VIP"],commPref:"email",status:"Active",aging:{current:1200,"31-60":2050,"61-90":1200,"90+":1000},overdueBalance:4250,openBalance:5450,creditBalance:0,netTerms:"Net 30",paymentPolicy:"On Account Storage Net 30 - Email",maxDaysPastDue:95,lastNote:"Spoke with AP — waiting on CFO approval",noteDate:"Feb 28",billingNotes:"Invoices must include PO numbers. Send to AP email only. Payment typically processed on Fridays.",invoiceCount:6,highlights:["$4,250 overdue across 6 invoices — last contact Feb 28","John committed to $1,350 by Mar 7 (payment batch runs Fridays)","INV-2301 disputed — claims incomplete service, wants ops review","DSO trending up from 35 → 42 over last quarter","Recommended: follow up on promise to pay, escalate dispute to operations"],accountNotes:"Long-standing customer since 2019. Prefers morning communications. Decision maker for all service changes.",failedPayment:true,extraBillingContacts:2},
+  {id:2,name:"City of Riverside",contact:{name:"Maria Gonzalez",email:"mgonzalez@riverside.gov",phone:"(555) 234-5678"},billingContact:{name:"Maria Gonzalez",title:"Finance Director",email:"mgonzalez@riverside.gov",phone:"(555) 234-5678"},accountContact:{name:"Tom Rivera",title:"Public Works Director",email:"trivera@riverside.gov",phone:"(555) 234-9999"},services:["D","R"],businessType:"Municipal",labels:[],commPref:"mail",status:"Active",aging:{current:3400,"31-60":1800,"61-90":0,"90+":0},overdueBalance:1800,openBalance:5200,creditBalance:200,netTerms:"Net 45",paymentPolicy:"COD Manual - Charge Storage - Mail",maxDaysPastDue:52,lastNote:"PO delayed — expected next week",noteDate:"Feb 27",billingNotes:"Requires PO on all invoices. Quarterly billing cycle.",invoiceCount:8,highlights:["$1,800 overdue — PO delays impacting payment timeline","Current balance of $3,400 within terms","Government contract — Net 45 non-negotiable"],accountNotes:"Municipal account. Annual contract renewal in September.",extraBillingContacts:0},
+  {id:3,name:"Tony's Pizzeria",contact:{name:"Tony Russo",email:"tony@tonyspizza.com",phone:"(555) 345-6789"},billingContact:{name:"Maria Vasquez",title:"Bookkeeper",email:"mvasquez@tonyspizza.com",phone:"(555) 345-0092"},accountContact:{name:"Tony Russo",title:"Owner",email:"tony@tonyspizza.com",phone:"(555) 345-6789"},services:["D"],businessType:"Restaurant",labels:["Escalated"],commPref:"phone",status:"Suspended: Non Payment",aging:{current:0,"31-60":450,"61-90":600,"90+":1200},overdueBalance:2250,openBalance:2250,creditBalance:0,netTerms:"Net 15",paymentPolicy:"COD Manual - Charge Storage - Mail",maxDaysPastDue:120,lastNote:"No answer — 3rd attempt. Left VM.",noteDate:"Mar 1",billingNotes:"All billing goes to Maria Vasquez (Bookkeeper). Owner Tony handles final decisions.",invoiceCount:4,highlights:["$2,250 overdue — 120 days past due, all aging buckets","Suspended for non-payment","3 call attempts with no response — consider escalation","Small restaurant, owner handles all billing"],accountNotes:"Small restaurant. Owner handles everything.",failedPayment:true,extraBillingContacts:0},
+  {id:4,name:"Metro Waste Solutions",contact:{name:"Karen White",email:"kwhite@metrowaste.com",phone:"(555) 456-7890"},billingContact:{name:"Karen White",title:"AP Coordinator",email:"kwhite@metrowaste.com",phone:"(555) 456-7890"},accountContact:{name:"Karen White",title:"AP Coordinator",email:"kwhite@metrowaste.com",phone:"(555) 456-7890"},services:["D","L","M"],businessType:"Commercial",labels:[],commPref:"email",status:"Active",aging:{current:4600,"31-60":600,"61-90":400,"90+":0},overdueBalance:1000,openBalance:5600,creditBalance:450,netTerms:"Net 30",billingAtLocation:true,paymentPolicy:"On Account Storage Net 30 - Email",failedPayment:true,maxDaysPastDue:42,lastNote:"INV-4412 overdue 42 days — Daniel Park unresponsive",noteDate:"Mar 3",billingNotes:"Prefers consolidated monthly invoice.",invoiceCount:3,highlights:["Account current — no overdue balance","$450 credit on account","High volume customer — consolidated monthly invoicing"],accountNotes:"Prefers consolidated monthly invoice.",extraBillingContacts:0},
+  {id:5,name:"State DOT — Dist. 7",contact:{name:"Robert Kim",email:"rkim@statedot.gov",phone:"(555) 567-8901"},billingContact:{name:"Robert Kim",title:"Contract Administrator",email:"rkim@statedot.gov",phone:"(555) 567-8901"},accountContact:{name:"Robert Kim",title:"Contract Administrator",email:"rkim@statedot.gov",phone:"(555) 567-8901"},services:["D","L","R"],businessType:"Government",labels:["Gov Contract"],commPref:"mail",status:"Active",aging:{current:8200,"31-60":4500,"61-90":2100,"90+":0},overdueBalance:6600,openBalance:14800,creditBalance:0,netTerms:"Net 60",paymentPolicy:"On Account Net 15 - Email",maxDaysPastDue:85,lastNote:"Quarterly review scheduled for March 10",noteDate:"Feb 26",billingNotes:"Government contract — specific billing format required. Net 60 non-negotiable.",invoiceCount:14,highlights:["$6,600 overdue across 31–90 day buckets","Quarterly review scheduled March 10","Government contract — Net 60 non-negotiable","VIP account — 14 active invoices"],accountNotes:"Government contract. Specific billing format required.",extraBillingContacts:1},
+  {id:6,name:"Bella Italia Restaurant",contact:{name:"Sofia Romano",email:"sromano@bellaitalia.com",phone:"(555) 678-9012"},billingContact:{name:"Carlo Ferri",title:"Accountant",email:"cferri@bellaitalia.com",phone:"(555) 678-1122"},accountContact:{name:"Sofia Romano",title:"Manager",email:"sromano@bellaitalia.com",phone:"(555) 678-9012"},services:["R"],businessType:"Restaurant",labels:["New Customer"],commPref:"text",status:"Active",aging:{current:800,"31-60":400,"61-90":0,"90+":0},overdueBalance:400,openBalance:1200,creditBalance:0,netTerms:"Net 15",paymentPolicy:"COD Manual - Charge Storage - Mail",maxDaysPastDue:45,lastNote:"First collections notice sent via email",noteDate:"Mar 1",billingNotes:"Billing handled by Carlo Ferri (Accountant). Contact Sofia for service questions.",invoiceCount:2,highlights:["$400 overdue — first collections notice sent","New customer — gentle follow-up recommended"],accountNotes:"New customer. Prefers text communication.",extraBillingContacts:0},
+  {id:7,name:"GreenCycle Recycling",contact:{name:"David Chen",email:"dchen@greencycle.com",phone:"(555) 789-0123"},billingContact:{name:"David Chen",title:"CFO",email:"dchen@greencycle.com",phone:"(555) 789-0123"},accountContact:{name:"David Chen",title:"CFO",email:"dchen@greencycle.com",phone:"(555) 789-0123"},services:["D","M","R"],businessType:"Commercial",labels:["Payment Plan"],commPref:"email",status:"Active",aging:{current:2000,"31-60":1500,"61-90":1500,"90+":3200},overdueBalance:6200,openBalance:8200,creditBalance:0,netTerms:"Net 30",paymentPolicy:"On Account Storage Net 15 - Email",maxDaysPastDue:110,lastNote:"On 3-mo payment plan — $2,066/mo. Next Mar 15",noteDate:"Feb 28",billingNotes:"Payment plan active. Do not send standard notices.",invoiceCount:9,highlights:["$6,200 overdue — on structured 3-month payment plan","$2,066/mo — next payment due March 15","Do NOT send standard notices — plan active","Expanding — considering 2 more sites Q2"],accountNotes:"Payment plan active. Expanding — considering 2 more sites in Q2.",failedPayment:true,extraBillingContacts:0},
+  {id:8,name:"Harbor Construction",contact:{name:"James Miller",email:"jmiller@harborconstruct.com",phone:"(555) 890-1234"},billingContact:{name:"James Miller",title:"Office Manager",email:"jmiller@harborconstruct.com",phone:"(555) 890-1234"},accountContact:{name:"James Miller",title:"Office Manager",email:"jmiller@harborconstruct.com",phone:"(555) 890-1234"},services:["D","L"],businessType:"Commercial",labels:[],commPref:"phone",status:"Active",aging:{current:3100,"31-60":900,"61-90":0,"90+":0},overdueBalance:900,openBalance:4000,creditBalance:150,netTerms:"Net 30",paymentPolicy:"On Account Storage Net 30 - Email",maxDaysPastDue:48,lastNote:"Check in the mail — expected by Friday",noteDate:"Feb 27",billingNotes:"Send invoices to James Miller directly. Check payments only — no ACH on file.",invoiceCount:4,highlights:["$900 overdue in 31–60 day bucket","Check reported in the mail — expected Friday","$150 credit on account"],accountNotes:"Construction business — project-based billing cycles. Volume varies by active job sites.",extraBillingContacts:0},
+  {id:9,name:"County School District",contact:{name:"Linda Park",email:"lpark@countyschools.edu",phone:"(555) 901-2345"},billingContact:{name:"Linda Park",title:"AP Department Head",email:"lpark@countyschools.edu",phone:"(555) 901-2345"},accountContact:{name:"Kevin Torres",title:"Facilities Director",email:"ktorres@countyschools.edu",phone:"(555) 901-5566"},services:["D","R"],businessType:"Municipal",labels:[],commPref:"mail",status:"Active",aging:{current:4500,"31-60":2200,"61-90":1100,"90+":800},overdueBalance:4100,openBalance:8600,creditBalance:0,netTerms:"Net 45",paymentPolicy:"COD Manual - Charge Storage - Mail",maxDaysPastDue:98,lastNote:"Dispute on INV-3301 for contamination charge",noteDate:"Mar 2",billingNotes:"Send invoices to AP department attention Linda Park.",invoiceCount:11,highlights:["$4,100 overdue — dispute active on INV-3301","Contamination charge disputed — requesting photos","$800 in 90+ bucket — follow up needed"],accountNotes:"Send invoices to AP department attention Linda Park.",extraBillingContacts:0},
+  {id:10,name:"Fresh Catch Seafood",contact:{name:"Amy Tran",email:"atran@freshcatch.com",phone:"(555) 012-3456"},billingContact:{name:"Jennifer Lam",title:"Bookkeeper",email:"jlam@freshcatch.com",phone:"(555) 012-7788"},accountContact:{name:"Amy Tran",title:"Owner",email:"atran@freshcatch.com",phone:"(555) 012-3456"},services:["L","R"],businessType:"Restaurant",labels:["Escalated"],commPref:"phone",status:"Active",aging:{current:0,"31-60":0,"61-90":850,"90+":2400},overdueBalance:3250,openBalance:3250,creditBalance:0,netTerms:"Net 15",paymentPolicy:"COD Manual - Charge Storage - Mail",maxDaysPastDue:130,lastNote:"Owner unresponsive — escalate to suspend review",noteDate:"Mar 2",billingNotes:"",invoiceCount:5,highlights:["$3,250 overdue — 130 days past due","Owner unresponsive after 5 contact attempts","Recommend suspension review — escalated"],accountNotes:"Seasonal — volume drops Oct–Mar.",extraBillingContacts:0},
+  {id:11,name:"Lakeside Hotels Group",contact:{name:"Patricia Wells",email:"pwells@lakesidehotels.com",phone:"(555) 111-2222"},billingContact:{name:"Patricia Wells",title:"Finance Manager",email:"pwells@lakesidehotels.com",phone:"(555) 111-2222"},accountContact:{name:"Patricia Wells",title:"Finance Manager",email:"pwells@lakesidehotels.com",phone:"(555) 111-2222"},services:["D","M"],businessType:"Commercial",labels:["VIP"],commPref:"email",status:"Active",aging:{current:4200,"31-60":0,"61-90":0,"90+":0},overdueBalance:0,openBalance:4200,creditBalance:800,netTerms:"Net 30",billingAtLocation:true,paymentPolicy:"On Account Storage Net 30 - Email",maxDaysPastDue:0,lastNote:"Renewed contract through 2027",noteDate:"Feb 20",billingNotes:"VIP — escalate any billing issues to account manager.",invoiceCount:2,highlights:["Account current — no overdue balance","$800 credit on account","Contract renewed through 2027 — VIP"],accountNotes:"VIP account. Renewed contract through 2027.",extraBillingContacts:0},
+  {id:12,name:"Sunshine Daycare",contact:{name:"Rachel Adams",email:"radams@sunshinedaycare.com",phone:"(555) 333-4444"},billingContact:{name:"Patricia Moore",title:"Office Administrator",email:"pmoore@sunshinedaycare.com",phone:"(555) 333-5566"},accountContact:{name:"Rachel Adams",title:"Director",email:"radams@sunshinedaycare.com",phone:"(555) 333-4444"},services:["R"],businessType:"Commercial",labels:["New Customer"],commPref:"text",status:"Suspended: Vacation",aging:{current:600,"31-60":0,"61-90":0,"90+":0},overdueBalance:0,openBalance:600,creditBalance:0,netTerms:"Net 15",paymentPolicy:"On Account Storage Net 15 - Email",maxDaysPastDue:0,lastNote:"On vacation hold until March 15",noteDate:"Feb 18",billingNotes:"",invoiceCount:1,highlights:["Account on vacation hold until March 15","No overdue balance","New customer — service to resume mid-March"],accountNotes:"",extraBillingContacts:0},
+];
+
+const collectionsNotes={
+  1:[{date:"Mar 5",time:"10:30 AM",by:"System",subject:"Credit card expired — Mastercard ending 5555",text:"Card on file (Mastercard ending 5555, exp 03/2025) is expired. Auto-payment scheduled for Mar 7 will fail unless card is updated."},{date:"Feb 28",time:"2:15 PM",by:"Maria S.",subject:"Call with John Peterson — payment commitment",text:"Acknowledged INV-2289 and INV-2275. Committed to $1,350 by Mar 7. Still disputes INV-2301 — wants ops manager review before paying."},{date:"Feb 28",time:"2:35 PM",by:"Maria S.",subject:"Follow-up needed — CFO approval pending",text:"Waiting on CFO approval for payment plan. Customer open to structured plan. Follow up Friday morning if no response."},{date:"Feb 25",time:"9:00 AM",by:"System",subject:"Second notice sent",text:"Automated email to jpeterson@acme.com. Included updated aging summary. Total overdue now $4,250 across 6 invoices."},{date:"Feb 27",time:"10:15 AM",by:"System",subject:"Payment received — $500 via ACH",text:"Applied to INV-2289. Remaining balance on INV-2289: $500."},{date:"Feb 20",time:"3:30 PM",by:"Maria S.",subject:"Promise to pay — $500 on INV-2289",text:"John committed to $500 partial payment by Feb 28. AP batch runs Fridays."},{date:"Feb 18",time:"10:45 AM",by:"Maria S.",subject:"Voicemail left for John Peterson",text:"Requested callback regarding outstanding balance."},{date:"Feb 15",time:"11:20 AM",by:"Mike R.",subject:"Customer dispute filed on INV-2301",text:"Customer claims dumpster service was not completed as agreed on Dec 15."},{date:"Feb 10",time:"9:00 AM",by:"System",subject:"First notice sent",text:"Automated first notice sent to jpeterson@acme.com with aging summary."}],
+  2:[{date:"Feb 27",time:"3:00 PM",by:"Maria S.",subject:"PO delayed — expected next week",text:"Maria confirmed PO processing delay. Should be issued by next Wednesday."},{date:"Feb 20",time:"10:00 AM",by:"System",subject:"First notice sent",text:"Automated notice sent for $1,800 overdue balance."}],
+  3:[{date:"Mar 1",time:"11:00 AM",by:"Jordan K.",subject:"No answer — 3rd attempt. Left VM.",text:"Third call attempt. Left detailed voicemail about $2,250 overdue balance and suspension status."},{date:"Feb 26",time:"2:00 PM",by:"Jordan K.",subject:"No answer — 2nd attempt",text:"Second call attempt. No answer."},{date:"Feb 22",time:"9:30 AM",by:"Jordan K.",subject:"Left VM for Tony. Mentioned $2,250 overdue.",text:"First outreach call. Left voicemail."}],
+  4:[{date:"Mar 3",time:"8:45 AM",by:"System",subject:"Payment failed — ACH returned on INV-4412",text:"ACH payment of $1,000 returned — insufficient funds. INV-4412 now 42 days past due. Customer notified via email."},{date:"Mar 3",time:"9:15 AM",by:"Jordan K.",subject:"Called Karen White re: failed payment",text:"Left voicemail for Karen White about returned ACH. Requested updated payment method or check within 5 business days."}],
+  5:[{date:"Feb 26",time:"2:00 PM",by:"Sarah M.",subject:"Quarterly review scheduled for March 10",text:"Robert confirmed quarterly review meeting. Will address all outstanding invoices."},{date:"Feb 15",time:"9:00 AM",by:"System",subject:"Aging notice sent",text:"Automated aging summary sent for $6,600 overdue."}],
+  6:[{date:"Mar 1",time:"9:00 AM",by:"System",subject:"First collections notice sent via email",text:"Automated first notice for $400 overdue."}],
+  7:[{date:"Mar 6",time:"9:00 AM",by:"System",subject:"Credit card expired — Amex ending 0005",text:"Card on file (Amex ending 0005, exp 06/2025) is expired. Payment plan installment due March 15 will need to be collected via alternate method."},{date:"Feb 28",time:"4:00 PM",by:"Sarah M.",subject:"Payment plan confirmed: $2,066/mo for 3 months",text:"David agreed to structured 3-month payment plan. First payment due March 15."},{date:"Feb 25",time:"1:15 PM",by:"Sarah M.",subject:"Negotiated plan terms",text:"Discussed payment plan options. David prefers monthly installments."}],
+  8:[{date:"Feb 27",time:"11:00 AM",by:"Mike R.",subject:"Check in the mail — expected by Friday",text:"James confirmed check mailed Wednesday. Should arrive by Friday."}],
+  9:[{date:"Mar 2",time:"10:00 AM",by:"Sarah M.",subject:"Linda disputing contamination charge on INV-3301",text:"Requesting photos of contamination. Wants to review before paying."},{date:"Feb 20",time:"2:00 PM",by:"System",subject:"Second notice sent",text:"Automated notice for $4,100 overdue."}],
+  10:[{date:"Mar 2",time:"9:00 AM",by:"Jordan K.",subject:"Owner unresponsive — recommend suspension review",text:"5th contact attempt. No response to calls or emails. Recommending suspension."},{date:"Feb 27",time:"3:30 PM",by:"Jordan K.",subject:"No answer. Sent final notice email.",text:"Called and emailed. No response."},{date:"Feb 22",time:"10:00 AM",by:"Jordan K.",subject:"Left VM — requesting callback",text:"Left voicemail about $3,250 overdue. Requested urgent callback."}],
+  11:[{date:"Feb 20",time:"11:00 AM",by:"Maria S.",subject:"Contract renewal confirmed — no collection action needed",text:"Patricia Wells confirmed contract renewal through 2027. Account in good standing. No overdue balance. $800 credit applied to next cycle."}],
+  12:[{date:"Feb 18",time:"2:00 PM",by:"Jordan K.",subject:"Vacation hold confirmed — service paused until March 15",text:"Rachel Adams requested vacation hold. Account balance of $600 will be held. Service to resume mid-March. No collections action needed at this time."}],
+};
+
+const customerPolicies={
+  1:{name:"On Account Storage Net 30 - Email",billingFrequency:"Monthly",invoiceGeneration:"End of Month",paymentDue:"Net 30",creditTerms:"Net 30",paymentMethod:"Check / ACH",invoiceDeliveryMethod:"Email"},
+  2:{name:"COD Manual - Charge Storage - Mail",billingFrequency:"Each Transaction",invoiceGeneration:"Upon Service",paymentDue:"Upon Service",creditTerms:"None",paymentMethod:"Cash",invoiceDeliveryMethod:"Mail"},
+  3:{name:"COD Manual - Charge Storage - Mail",billingFrequency:"Each Transaction",invoiceGeneration:"Upon Service",paymentDue:"Upon Service",creditTerms:"None",paymentMethod:"Cash",invoiceDeliveryMethod:"Mail"},
+  4:{name:"On Account Storage Net 30 - Email",billingFrequency:"Monthly",invoiceGeneration:"End of Month",paymentDue:"Net 30",creditTerms:"Net 30",paymentMethod:"ACH",invoiceDeliveryMethod:"Email"},
+  5:{name:"On Account Net 15 - Email",billingFrequency:"Bi-Weekly",invoiceGeneration:"Upon Service",paymentDue:"Net 60",creditTerms:"Net 60",paymentMethod:"Check",invoiceDeliveryMethod:"Email"},
+  6:{name:"COD Manual - Charge Storage - Mail",billingFrequency:"Each Transaction",invoiceGeneration:"Upon Service",paymentDue:"Upon Service",creditTerms:"None",paymentMethod:"Cash",invoiceDeliveryMethod:"Mail"},
+  7:{name:"On Account Storage Net 15 - Email",billingFrequency:"Weekly",invoiceGeneration:"Upon Service",paymentDue:"Net 30",creditTerms:"Net 30",paymentMethod:"ACH",invoiceDeliveryMethod:"Email"},
+  8:{name:"On Account Storage Net 30 - Email",billingFrequency:"Monthly",invoiceGeneration:"End of Month",paymentDue:"Net 30",creditTerms:"Net 30",paymentMethod:"Check",invoiceDeliveryMethod:"Email"},
+  9:{name:"COD Manual - Charge Storage - Mail",billingFrequency:"Each Transaction",invoiceGeneration:"Upon Service",paymentDue:"Net 45",creditTerms:"Net 45",paymentMethod:"Check",invoiceDeliveryMethod:"Mail"},
+  10:{name:"COD Manual - Charge Storage - Mail",billingFrequency:"Each Transaction",invoiceGeneration:"Upon Service",paymentDue:"Upon Service",creditTerms:"None",paymentMethod:"Cash",invoiceDeliveryMethod:"Mail"},
+  11:{name:"On Account Storage Net 30 - Email",billingFrequency:"Monthly",invoiceGeneration:"End of Month",paymentDue:"Net 30",creditTerms:"Net 30",paymentMethod:"ACH",invoiceDeliveryMethod:"Email"},
+  12:{name:"On Account Storage Net 15 - Email",billingFrequency:"Each Transaction",invoiceGeneration:"Upon Service",paymentDue:"Net 15",creditTerms:"Net 15",paymentMethod:"Credit Card",invoiceDeliveryMethod:"Email"},
+};
+
+const customerContacts={
+  1:[
+    {id:"c1-1",name:"John Peterson",title:"Accounts Payable Manager",phone:"(555) 234-5678",ext:"",email:"jpeterson@acme.com",pinned:true,role:"Billing Contact",disabled:false},
+    {id:"c1-2",name:"Sarah Johnson",title:"Operations Manager",phone:"(555) 123-4567",ext:"",email:"sjohnson@acme.com",pinned:true,role:"Account Contact",disabled:false},
+    {id:"c1-3",name:"Mike Torres",title:"Warehouse Supervisor",phone:"(555) 321-9876",ext:"204",email:"mtorres@acme.com",pinned:false,role:"",disabled:false},
+    {id:"c1-4",name:"Lisa Carmichael",title:"VP Finance",phone:"(555) 123-9001",ext:"",email:"lcarmichael@acme.com",pinned:false,role:"",disabled:true},
+  ],
+  2:[
+    {id:"c2-1",name:"Maria Gonzalez",title:"Finance Director",phone:"(555) 234-5678",ext:"",email:"mgonzalez@riverside.gov",pinned:true,role:"Billing Contact",disabled:false},
+    {id:"c2-2",name:"Tom Rivera",title:"Public Works Director",phone:"(555) 234-9999",ext:"",email:"trivera@riverside.gov",pinned:true,role:"Account Contact",disabled:false},
+  ],
+  3:[
+    {id:"c3-1",name:"Maria Vasquez",title:"Bookkeeper",phone:"(555) 345-0092",ext:"",email:"mvasquez@tonyspizza.com",pinned:true,role:"Billing Contact",disabled:false},
+    {id:"c3-2",name:"Tony Russo",title:"Owner",phone:"(555) 345-6789",ext:"",email:"tony@tonyspizza.com",pinned:true,role:"Account Contact",disabled:false},
+  ],
+  4:[
+    {id:"c4-1",name:"Karen White",title:"AP Coordinator",phone:"(555) 456-7890",ext:"",email:"kwhite@metrowaste.com",pinned:true,role:"Billing Contact",disabled:false},
+    {id:"c4-2",name:"Daniel Park",title:"Operations Director",phone:"(555) 456-0001",ext:"110",email:"dpark@metrowaste.com",pinned:false,role:"",disabled:false},
+  ],
+  5:[
+    {id:"c5-1",name:"Robert Kim",title:"Contract Administrator",phone:"(555) 567-8901",ext:"",email:"rkim@statedot.gov",pinned:true,role:"Billing Contact",disabled:false},
+    {id:"c5-2",name:"Robert Kim",title:"Contract Administrator",phone:"(555) 567-8901",ext:"",email:"rkim@statedot.gov",pinned:true,role:"Account Contact",disabled:false},
+    {id:"c5-3",name:"Janet Lee",title:"AP Specialist",phone:"(555) 567-8910",ext:"305",email:"jlee@statedot.gov",pinned:false,role:"",disabled:false},
+  ],
+  6:[
+    {id:"c6-1",name:"Carlo Ferri",title:"Accountant",phone:"(555) 678-1122",ext:"",email:"cferri@bellaitalia.com",pinned:true,role:"Billing Contact",disabled:false},
+    {id:"c6-2",name:"Sofia Romano",title:"Manager",phone:"(555) 678-9012",ext:"",email:"sromano@bellaitalia.com",pinned:true,role:"Account Contact",disabled:false},
+  ],
+  7:[
+    {id:"c7-1",name:"David Chen",title:"CFO",phone:"(555) 789-0123",ext:"",email:"dchen@greencycle.com",pinned:true,role:"Billing Contact",disabled:false},
+    {id:"c7-2",name:"Lisa Nguyen",title:"AP Manager",phone:"(555) 789-0124",ext:"201",email:"lnguyen@greencycle.com",pinned:false,role:"Account Contact",disabled:false},
+  ],
+  8:[
+    {id:"c8-1",name:"James Miller",title:"Office Manager",phone:"(555) 890-1234",ext:"",email:"jmiller@harborconstruct.com",pinned:true,role:"Billing Contact",disabled:false},
+    {id:"c8-2",name:"Dan Kowalski",title:"Project Superintendent",phone:"(555) 890-5678",ext:"102",email:"dkowalski@harborconstruct.com",pinned:true,role:"Account Contact",disabled:false},
+  ],
+  9:[
+    {id:"c9-1",name:"Linda Park",title:"AP Department Head",phone:"(555) 901-2345",ext:"",email:"lpark@countyschools.edu",pinned:true,role:"Billing Contact",disabled:false},
+    {id:"c9-2",name:"Kevin Torres",title:"Facilities Director",phone:"(555) 901-5566",ext:"",email:"ktorres@countyschools.edu",pinned:true,role:"Account Contact",disabled:false},
+  ],
+  10:[
+    {id:"c10-1",name:"Jennifer Lam",title:"Bookkeeper",phone:"(555) 012-7788",ext:"",email:"jlam@freshcatch.com",pinned:true,role:"Billing Contact",disabled:false},
+    {id:"c10-2",name:"Amy Tran",title:"Owner",phone:"(555) 012-3456",ext:"",email:"atran@freshcatch.com",pinned:true,role:"Account Contact",disabled:false},
+  ],
+  11:[
+    {id:"c11-1",name:"Patricia Wells",title:"Finance Manager",phone:"(555) 111-2222",ext:"",email:"pwells@lakesidehotels.com",pinned:true,role:"Billing Contact",disabled:false},
+    {id:"c11-2",name:"Greg Hall",title:"General Manager",phone:"(555) 111-3333",ext:"",email:"ghall@lakesidehotels.com",pinned:false,role:"",disabled:false},
+  ],
+  12:[
+    {id:"c12-1",name:"Patricia Moore",title:"Office Administrator",phone:"(555) 333-5566",ext:"",email:"pmoore@sunshinedaycare.com",pinned:true,role:"Billing Contact",disabled:false},
+    {id:"c12-2",name:"Rachel Adams",title:"Director",phone:"(555) 333-4444",ext:"",email:"radams@sunshinedaycare.com",pinned:true,role:"Account Contact",disabled:false},
+  ],
+};
+
+const customerLocations={
+  1:[
+    {id:"l1-1",name:"Acme Main Plant",address:"1200 Industrial Pkwy",city:"Riverside, CA 92501",labels:["VIP"],containers:4,activeOrders:2,totalOrders:14,status:"Active"},
+    {id:"l1-2",name:"Acme Warehouse B",address:"1205 Industrial Pkwy",city:"Riverside, CA 92501",labels:[],containers:2,activeOrders:1,totalOrders:6,status:"Hold"},
+  ],
+  2:[
+    {id:"l2-1",name:"City Hall",address:"3900 Main St",city:"Riverside, CA 92522",labels:["Gov Contract"],containers:3,activeOrders:2,totalOrders:8,status:"Active"},
+    {id:"l2-2",name:"Public Works Yard",address:"7755 Mission Blvd",city:"Riverside, CA 92509",labels:[],containers:2,activeOrders:1,totalOrders:4,status:"Hold"},
+  ],
+  3:[{id:"l3-1",name:"Tony's Pizzeria",address:"482 Main St",city:"San Bernardino, CA 92401",labels:["Escalated"],containers:1,activeOrders:0,totalOrders:4,status:"Do Not Service"}],
+  4:[
+    {id:"l4-1",name:"Metro HQ",address:"9200 Commerce Dr",city:"Fontana, CA 92335",labels:["High Volume"],containers:5,activeOrders:3,totalOrders:18,status:"Active",contact:{name:"Karen White",email:"kwhite@metrowaste.com",phone:"(555) 456-7890"},aging:{current:3200,"31-60":0,"61-90":0,"90+":0},overdueBalance:0,openBalance:3200,creditBalance:200,netTerms:"Net 30",commPref:"email",paymentPolicy:"On Account Storage Net 30 - Email",lastNote:"Account current — monthly invoice sent",noteDate:"Mar 1"},
+    {id:"l4-2",name:"Metro South Yard",address:"1400 Slover Ave",city:"Colton, CA 92324",labels:[],containers:3,activeOrders:2,totalOrders:9,status:"Hold",contact:{name:"Daniel Park",email:"dpark@metrowaste.com",phone:"(555) 456-0001"},aging:{current:1400,"31-60":600,"61-90":400,"90+":0},overdueBalance:1000,openBalance:2400,creditBalance:250,netTerms:"Net 30",commPref:"email",paymentPolicy:"On Account Storage Net 30 - Email",lastNote:"INV-4412 overdue 42 days — follow-up sent",noteDate:"Mar 3"},
+    {id:"l4-3",name:"Metro Depot",address:"660 N Pepper Ave",city:"Rialto, CA 92376",labels:[],containers:2,activeOrders:0,totalOrders:5,status:"Inactive",contact:{name:"Karen White",email:"kwhite@metrowaste.com",phone:"(555) 456-7890"},aging:{current:0,"31-60":0,"61-90":0,"90+":0},overdueBalance:0,openBalance:0,creditBalance:0,netTerms:"Net 30",commPref:"email",paymentPolicy:"On Account Storage Net 30 - Email",lastNote:"Inactive — service on hold",noteDate:"Feb 10"},
+  ],
+  5:[
+    {id:"l5-1",name:"District 7 Office",address:"464 W 4th St",city:"San Bernardino, CA 92401",labels:["Gov Contract"],containers:6,activeOrders:4,totalOrders:22,status:"Active"},
+    {id:"l5-2",name:"Maintenance Yard A",address:"280 Industrial Dr",city:"Colton, CA 92324",labels:[],containers:4,activeOrders:3,totalOrders:12,status:"Inactive"},
+  ],
+  6:[{id:"l6-1",name:"Bella Italia",address:"124 3rd St",city:"Riverside, CA 92501",labels:["New Customer"],containers:1,activeOrders:1,totalOrders:2,status:"Active"}],
+  7:[
+    {id:"l7-1",name:"GreenCycle Main Facility",address:"2300 Recycling Way",city:"Perris, CA 92571",labels:["Payment Plan"],containers:4,activeOrders:2,totalOrders:16,status:"Active"},
+    {id:"l7-2",name:"GreenCycle North",address:"1800 N Perris Blvd",city:"Perris, CA 92571",labels:[],containers:3,activeOrders:1,totalOrders:8,status:"Hold"},
+  ],
+  8:[{id:"l8-1",name:"Harbor Construction Site A",address:"5400 Mission Inn Ave",city:"Riverside, CA 92501",labels:[],containers:3,activeOrders:2,totalOrders:7,status:"Hold"}],
+  9:[
+    {id:"l9-1",name:"District Office",address:"777 N F St",city:"San Bernardino, CA 92410",labels:["Gov Contract"],containers:4,activeOrders:2,totalOrders:11,status:"Active"},
+    {id:"l9-2",name:"Roosevelt Elementary",address:"1650 W Rialto Ave",city:"San Bernardino, CA 92410",labels:[],containers:2,activeOrders:1,totalOrders:5,status:"Inactive"},
+    {id:"l9-3",name:"Lincoln High School",address:"1800 E Highland Ave",city:"San Bernardino, CA 92404",labels:[],containers:3,activeOrders:0,totalOrders:4,status:"Hold"},
+  ],
+  10:[{id:"l10-1",name:"Fresh Catch Seafood",address:"340 Market St",city:"San Bernardino, CA 92410",labels:["Escalated"],containers:1,activeOrders:0,totalOrders:5,status:"Hold"}],
+  11:[
+    {id:"l11-1",name:"Lakeside Hotel — Main",address:"1050 Lakeside Dr",city:"Lake Arrowhead, CA 92352",labels:["VIP"],containers:4,activeOrders:2,totalOrders:14,status:"Active",contact:{name:"Patricia Wells",email:"pwells@lakesidehotels.com",phone:"(555) 111-2222"},aging:{current:2800,"31-60":0,"61-90":0,"90+":0},overdueBalance:0,openBalance:2800,creditBalance:500,netTerms:"Net 30",commPref:"email",paymentPolicy:"On Account Storage Net 30 - Email",lastNote:"Renewed contract through 2027",noteDate:"Feb 20"},
+    {id:"l11-2",name:"Lakeside Hotel — Annex",address:"1080 Lakeside Dr",city:"Lake Arrowhead, CA 92352",labels:[],containers:2,activeOrders:1,totalOrders:6,status:"Hold",contact:{name:"Greg Hall",email:"ghall@lakesidehotels.com",phone:"(555) 111-3333"},aging:{current:1400,"31-60":0,"61-90":0,"90+":0},overdueBalance:0,openBalance:1400,creditBalance:300,netTerms:"Net 30",commPref:"email",paymentPolicy:"On Account Storage Net 30 - Email",lastNote:"Account current",noteDate:"Feb 20"},
+  ],
+  12:[{id:"l12-1",name:"Sunshine Daycare",address:"720 Arrowhead Ave",city:"San Bernardino, CA 92401",labels:["New Customer"],containers:1,activeOrders:0,totalOrders:1,status:"Inactive"}],
+};
+
+const customerCards={
+  1:[{id:"cc-1-1",brand:"Visa",last4:"4242",expMonth:9,expYear:2026,name:"Acme Corp",isDefault:true},{id:"cc-1-2",brand:"Mastercard",last4:"5555",expMonth:3,expYear:2025,name:"John Smith",isDefault:false}],
+  3:[{id:"cc-3-1",brand:"Visa",last4:"8812",expMonth:8,expYear:2026,name:"Tony Russo",isDefault:true}],
+  4:[{id:"cc-4-1",brand:"Visa",last4:"1234",expMonth:11,expYear:2026,name:"Metro Waste Solutions",isDefault:true}],
+  7:[{id:"cc-7-1",brand:"Amex",last4:"0005",expMonth:6,expYear:2025,name:"GreenCycle LLC",isDefault:true},{id:"cc-7-2",brand:"Discover",last4:"6011",expMonth:1,expYear:2027,name:"GreenCycle LLC",isDefault:false}],
+  11:[{id:"cc-11-1",brand:"Visa",last4:"9999",expMonth:4,expYear:2026,name:"Lakeside Hotels",isDefault:true}],
+};
+const fmt=n=>"$"+n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc=s=>{const d=document.createElement("div");d.textContent=s;return d.innerHTML};
+
+const BUCKETS=[
+  {key:"current",label:"Current",cls:"b-green"},
+  {key:"31-60",label:"31–60 Days",cls:"b-amber"},
+  {key:"61-90",label:"61–90 Days",cls:"b-orange"},
+  {key:"90+",label:"90+ Days",cls:"b-red"},
+];
+const COLUMNS=[
+  {key:"name",label:"Customer",pickerLabel:"Customer",sortable:true,thStyle:""},
+  {key:"businessType",label:"Type",pickerLabel:"Type",sortable:true,thStyle:""},
+  {key:"services",label:"Svc",pickerLabel:"Services",sortable:true,thStyle:"text-align:center"},
+  {key:"labels",label:"Labels",pickerLabel:"Labels",sortable:true,thStyle:""},
+  {key:"contact",label:"Billing Contact",pickerLabel:"Billing Contact",sortable:true,thStyle:""},
+  {key:"locBilling",label:"Loc. Billing",pickerLabel:"Loc. Billing",sortable:true,thStyle:"text-align:center"},
+  {key:"commPref",label:"Comm",pickerLabel:"Comm. Preference",sortable:true,thStyle:"text-align:center"},
+  {key:"netTerms",label:"Terms",pickerLabel:"Net Terms",sortable:true,thStyle:""},
+  {key:"current",label:"Current",pickerLabel:"Current (Aging)",sortable:true,thStyle:"text-align:right"},
+  {key:"31-60",label:"31–60 Days",pickerLabel:"31–60 Days",sortable:true,thStyle:"text-align:right"},
+  {key:"61-90",label:"61–90 Days",pickerLabel:"61–90 Days",sortable:true,thStyle:"text-align:right"},
+  {key:"90+",label:"90+ Days",pickerLabel:"90+ Days",sortable:true,thStyle:"text-align:right"},
+  {key:"overdueBalance",label:"Overdue",pickerLabel:"Overdue",sortable:true,thStyle:"text-align:right;color:#dc2626"},
+  {key:"failedPayment",label:"",pickerLabel:"Failed Payment",sortable:true,thStyle:""},
+  {key:"openBalance",label:"Open Bal.",pickerLabel:"Open Balance",sortable:true,thStyle:"text-align:right"},
+  {key:"creditBalance",label:"Credit",pickerLabel:"Credit",sortable:true,thStyle:"text-align:right"},
+  {key:"paymentPolicy",label:"Payment Policy",pickerLabel:"Payment Policy",sortable:true,thStyle:""},
+  {key:"lastNote",label:"Last Note",pickerLabel:"Last Note",sortable:true,thStyle:""},
+  {key:"status",label:"Status",pickerLabel:"Status",sortable:true,thStyle:""},
+];
+
+let state={search:"",sortKey:"overdueBalance",sortDir:"desc",selectedBucket:null,selectedRows:[],showFilters:false,businessFilter:[],labelFilter:[],serviceFilter:[],commFilter:[],termsFilter:[],statusFilter:[],overdueMin:"",overdueMax:"",daysPastDue:"",groupBy:"none",editingContact:null,collDateFrom:"",collDateTo:"",
+  panelOpen:false,panelCustomerId:null,panelTab:"overview",panelNoteSearch:"",panelShowFilters:false,panelDateFilter:"all",panelUserFilter:"all",panelAddOpen:false,highlightNoteIdx:-1,
+  editingBillingNotes:false,editingAccountNotes:false,tempBillingNotes:"",tempAccountNotes:"",
+  addingContact:false,editingContactId:null,contactSearch:"",
+  customerFilter:"",billingContactFilter:"",policyFilter:[],
+  contactsData:{},locationsData:{},expandedLocations:[],
+  addingCard:false,editingCardId:null,tempCardDefault:false,panelCardSearch:"",panelLocationSearch:"",
+  panelLocationId:null,kebabOpen:null,
+  columnOrder:COLUMNS.map(c=>c.key),columnVisibility:Object.fromEntries(COLUMNS.map(c=>[c.key,true])),showColumnPicker:false,dragColumn:null};
+
+function toggleArr(a,v){return a.includes(v)?a.filter(x=>x!==v):[...a,v]}
+
+function getFiltered(){
+  return customers.filter(c=>{
+    if(state.search){
+      const q=state.search.toLowerCase();
+      const locs=customerLocations[c.id]||[];
+      const locMatch=locs.some(l=>l.name.toLowerCase().includes(q)||(l.address+', '+l.city).toLowerCase().includes(q));
+      if(!c.name.toLowerCase().includes(q)&&!c.contact.name.toLowerCase().includes(q)&&!c.contact.email.toLowerCase().includes(q)&&!locMatch)return false;
+    }
+    if(state.selectedBucket&&(c.aging[state.selectedBucket]||0)===0)return false;
+    if(state.businessFilter.length&&!state.businessFilter.includes(c.businessType))return false;
+    if(state.labelFilter.length&&!state.labelFilter.some(l=>c.labels.includes(l)))return false;
+    if(state.serviceFilter.length&&!state.serviceFilter.some(s=>c.services.includes(s)))return false;
+    if(state.commFilter.length&&!state.commFilter.includes(c.commPref))return false;
+    if(state.termsFilter.length&&!state.termsFilter.includes(c.netTerms))return false;
+    if(state.statusFilter.length&&!state.statusFilter.includes(c.status))return false;
+    if(state.overdueMin&&c.overdueBalance<Number(state.overdueMin))return false;
+    if(state.overdueMax&&c.overdueBalance>Number(state.overdueMax))return false;
+    if(state.daysPastDue&&c.maxDaysPastDue<Number(state.daysPastDue))return false;
+    if(state.customerFilter){const q=state.customerFilter.toLowerCase();if(!c.name.toLowerCase().includes(q))return false;}
+    if(state.billingContactFilter){const q=state.billingContactFilter.toLowerCase();if(!c.contact.name.toLowerCase().includes(q)&&!c.contact.email.toLowerCase().includes(q))return false;}
+    if(state.policyFilter.length&&!state.policyFilter.includes(c.paymentPolicy))return false;
+    return true;
+  });
+}
+function getSorted(list){
+  if(!state.sortKey)return[...list];
+  return[...list].sort((a,b)=>{
+    const k=state.sortKey,d=state.sortDir;
+    if(["name","businessType","commPref","status"].includes(k))return d==="asc"?a[k].localeCompare(b[k]):b[k].localeCompare(a[k]);
+    if(k==="contact")return d==="asc"?a.contact.name.localeCompare(b.contact.name):b.contact.name.localeCompare(a.contact.name);
+    let av,bv;
+    if(k==="netTerms"){av=parseInt(a.netTerms.replace(/\D/g,""));bv=parseInt(b.netTerms.replace(/\D/g,""))}
+    else if(["current","31-60","61-90","90+"].includes(k)){av=a.aging[k]||0;bv=b.aging[k]||0}
+    else{av=a[k]||0;bv=b[k]||0}
+    return d==="asc"?av-bv:bv-av;
+  });
+}
+function getGrouped(sorted){
+  if(state.groupBy==="none")return[{label:null,rows:sorted}];
+  const map={};
+  sorted.forEach(c=>{
+    let keys;
+    if(state.groupBy==="businessType")keys=[c.businessType];
+    else if(state.groupBy==="labels")keys=c.labels.length?c.labels:["No Label"];
+    else if(state.groupBy==="agingBucket"){if((c.aging["90+"]||0)>0)keys=["90+ Days"];else if((c.aging["61-90"]||0)>0)keys=["61–90 Days"];else if((c.aging["31-60"]||0)>0)keys=["31–60 Days"];else if(c.overdueBalance>0)keys=["Current"];else keys=["No Overdue"]}
+    else if(state.groupBy==="netTerms")keys=[c.netTerms];
+    else if(state.groupBy==="status")keys=[c.status];
+    else keys=["Other"];
+    keys.forEach(k=>{if(!map[k])map[k]=[];map[k].push(c)});
+  });
+  return Object.entries(map).map(([k,rows])=>({label:k,rows}));
+}
+
+function statusClass(s){if(s==="Active")return"status-active";if(s==="Suspended: Non Payment")return"status-suspended-np";return"status-suspended-v"}
+function panelStatusClass(s){if(s==="Active")return"ps-active";if(s==="Suspended: Non Payment")return"ps-snp";return"ps-sv"}
+function sortArrow(k){return state.sortKey===k?`<span class="sort">${state.sortDir==="asc"?" ↑":" ↓"}</span>`:`<span class="sort-hint"> ↑</span>`}
+
+function openPanel(id,tab,highlightIdx,locId){
+  state.panelOpen=true;state.panelCustomerId=id;state.panelLocationId=locId||null;state.panelTab=tab||"overview";state.panelNoteSearch="";state.panelShowFilters=false;state.panelDateFilter="all";state.panelUserFilter="all";state.panelAddOpen=false;state.highlightNoteIdx=highlightIdx!=null?highlightIdx:-1;
+  render();
+  if(highlightIdx!=null&&highlightIdx>=0){
+    setTimeout(()=>{const el=document.getElementById('hl-note-'+highlightIdx);if(el){el.scrollIntoView({block:'nearest'});setTimeout(()=>{el.classList.remove('highlight')},2500)}},100);
+  }
+}
+function closePanel(){state.panelOpen=false;state.panelCustomerId=null;state.highlightNoteIdx=-1;render()}
+
+function getCards(cid){return state.contactsData[cid+'_cards']!==undefined?state.contactsData[cid+'_cards']:[...(customerCards[cid]||[])]}
+function saveCards(cid,cards){const o={};o[cid+'_cards']=cards;setState({contactsData:Object.assign({},state.contactsData,o)})}
+function addCard(cid){const last4=(document.getElementById('card-last4').value||'').replace(/\D/g,'').slice(0,4);if(last4.length!==4)return;const brand=document.getElementById('card-brand').value;const expMonth=parseInt(document.getElementById('card-month').value)||1;const expYear=parseInt(document.getElementById('card-year').value)||2025;const name=(document.getElementById('card-name').value||'').trim();const isDefault=state.tempCardDefault;const cards=getCards(cid);const setDef=isDefault||cards.length===0;const newCard={id:'card-'+Date.now(),brand,last4,expMonth,expYear,name,isDefault:setDef};const updated=setDef?cards.map(c=>({...c,isDefault:false})):[...cards];saveCards(cid,[...updated,newCard]);setState({addingCard:false,tempCardDefault:false})}
+function startEditCard(cid,cardId){const card=getCards(cid).find(c=>c.id===cardId);if(!card)return;setState({editingCardId:cardId,addingCard:false,tempCardDefault:card.isDefault})}
+function saveEditCard(cid,cardId){const last4=(document.getElementById('card-last4').value||'').replace(/\D/g,'').slice(0,4);if(last4.length!==4)return;const brand=document.getElementById('card-brand').value;const expMonth=parseInt(document.getElementById('card-month').value)||1;const expYear=parseInt(document.getElementById('card-year').value)||2025;const name=(document.getElementById('card-name').value||'').trim();const isDefault=state.tempCardDefault;const cards=getCards(cid).map(c=>{if(c.id!==cardId)return isDefault?{...c,isDefault:false}:c;return{...c,brand,last4,expMonth,expYear,name,isDefault}});saveCards(cid,cards);setState({editingCardId:null,tempCardDefault:false})}
+function deleteCard(cid,cardId){saveCards(cid,getCards(cid).filter(c=>c.id!==cardId))}
+function setDefaultCard(cid,cardId){saveCards(cid,getCards(cid).map(c=>({...c,isDefault:c.id===cardId})))}
+function toggleColVis(key){state.columnVisibility={...state.columnVisibility,[key]:!state.columnVisibility[key]};render()}
+
+function renderTH(col){
+  const k=col.key;
+  if(k==="name")return`<th class="col-sticky" style="left:36px" onclick="doSort('name')">Customer${sortArrow("name")}</th>`;
+  if(k==="businessType")return`<th onclick="doSort('businessType')">Type${sortArrow("businessType")}</th>`;
+  if(k==="services")return`<th style="text-align:center;cursor:default">Svc</th>`;
+  if(k==="labels")return`<th style="cursor:default">Labels</th>`;
+  if(k==="contact")return`<th onclick="doSort('contact')">Billing Contact${sortArrow("contact")}</th>`;
+  if(k==="locBilling")return`<th style="cursor:default;text-align:center">Loc. Billing</th>`;
+  if(k==="commPref")return`<th onclick="doSort('commPref')">Comm${sortArrow("commPref")}</th>`;
+  if(k==="netTerms")return`<th onclick="doSort('netTerms')">Terms${sortArrow("netTerms")}</th>`;
+  if(["current","31-60","61-90","90+"].includes(k))return`<th onclick="doSort('${k}')" style="text-align:right">${COLUMNS.find(c=>c.key===k).label}${sortArrow(k)}</th>`;
+  if(k==="overdueBalance")return`<th onclick="doSort('overdueBalance')" style="text-align:right;color:#dc2626">Overdue${sortArrow("overdueBalance")}</th>`;
+  if(k==="failedPayment")return`<th style="cursor:default"></th>`;
+  if(k==="openBalance")return`<th onclick="doSort('openBalance')" style="text-align:right">Open Bal.${sortArrow("openBalance")}</th>`;
+  if(k==="creditBalance")return`<th onclick="doSort('creditBalance')" style="text-align:right">Credit${sortArrow("creditBalance")}</th>`;
+  if(k==="paymentPolicy")return`<th onclick="doSort('paymentPolicy')">Payment Policy${sortArrow("paymentPolicy")}</th>`;
+  if(k==="lastNote")return`<th style="cursor:default">Last Note</th>`;
+  if(k==="status")return`<th onclick="doSort('status')">Status${sortArrow("status")}</th>`;
+  return`<th>${col.label}</th>`;
+}
+function renderTD(k,c,locBilling){
+  const isOD=c.overdueBalance>0;
+  if(k==="name")return`<td class="col-sticky" style="left:36px"><div style="display:flex;align-items:center;gap:5px">${locBilling?`<button class="loc-toggle-btn" onclick="event.stopPropagation();toggleLocationExpand(${c.id})"><svg class="ic loc-expand-chevron ${state.expandedLocations.includes(c.id)?'expanded':''}" width="11" height="11" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>`:''}<span class="${isOD?'name-overdue':'name-normal'}">${esc(c.name)}</span></div></td>`;
+  if(k==="businessType")return`<td><span style="font-size:12px;color:#1e293b">${c.businessType}</span></td>`;
+  if(k==="services")return`<td style="text-align:center">${c.services.map(sv=>`<span class="svc-badge" style="background:${SERVICE_COLORS[sv]}18;color:${SERVICE_COLORS[sv]};border:1px solid ${SERVICE_COLORS[sv]}40">${sv}<span class="tip">${SERVICE_MAP[sv]}</span></span>`).join("")}</td>`;
+  if(k==="labels")return`<td><div style="display:flex;flex-wrap:wrap;gap:2px">${c.labels.map(l=>{const lc=LABEL_COLORS[l]||LABEL_COLORS["New Customer"];return`<span class="badge" style="background:${lc.bg};color:${lc.text};border:1px solid ${lc.border}40">${esc(l)}</span>`}).join("")}</div></td>`;
+  if(k==="contact")return`<td>${state.editingContact===c.id?`<div class="edit-form"><input id="ec-name" value="${esc(c.contact.name)}"><input id="ec-email" value="${esc(c.contact.email)}"><input id="ec-phone" value="${esc(c.contact.phone)}"><div class="edit-btns"><button class="edit-save" onclick="saveContact(${c.id})">✓</button><button class="edit-cancel" onclick="setState({editingContact:null})">✕</button></div></div>`:`<div class="contact-cell" ondblclick="setState({editingContact:${c.id}})"><div class="contact-name">${esc(c.contact.name)}</div><div class="contact-email">${esc(c.contact.email)}</div><div class="contact-phone">${esc(c.contact.phone)}</div><div class="edit-hint">✏️</div></div>`}</td>`;
+  if(k==="locBilling")return`<td style="text-align:center">${locBilling?`<span class="loc-yes">Yes</span>`:`<span class="loc-no">No</span>`}</td>`;
+  if(k==="commPref")return`<td><span class="comm-icon">${COMM_PREF[c.commPref]?.icon||"✉️"}<span class="tip">${COMM_PREF[c.commPref]?.label||"Email"}</span></span></td>`;
+  if(k==="netTerms")return`<td><span style="font-size:12px;font-weight:500;color:#475569;white-space:nowrap">${c.netTerms}</span></td>`;
+  if(["current","31-60","61-90","90+"].includes(k)){const v=c.aging[k]||0;return`<td style="text-align:right">${v>0?`<span class="money">${fmt(v)}</span>`:`<span class="dash">—</span>`}</td>`}
+  if(k==="overdueBalance")return`<td style="text-align:right">${isOD?`<span class="money-overdue">${fmt(c.overdueBalance)}</span>`:`<span class="dash">—</span>`}</td>`;
+  if(k==="failedPayment")return`<td style="text-align:left;padding-left:4px">${c.failedPayment?`<span class="failed-pmt-badge">Failed Pmt</span>`:''}</td>`;
+  if(k==="openBalance")return`<td style="text-align:right"><span class="money-open">${fmt(c.openBalance)}</span></td>`;
+  if(k==="creditBalance")return`<td style="text-align:right">${c.creditBalance>0?`<span class="money-credit">${fmt(c.creditBalance)}</span>`:`<span class="dash">—</span>`}</td>`;
+  if(k==="paymentPolicy")return`<td><span style="font-size:12px;color:#475569;white-space:nowrap">${c.paymentPolicy?esc(c.paymentPolicy):`<span class="dash">—</span>`}</span></td>`;
+  if(k==="lastNote")return`<td><div class="note-cell" onclick="openPanel(${c.id},'activity',0)"><div class="note-text" title="${esc(c.lastNote)}">${esc(c.lastNote)}</div><div class="note-date">${c.noteDate}</div></div></td>`;
+  if(k==="status"){const isSusp=c.status.startsWith("Suspended:");const parts=isSusp?c.status.split(": "):null;return`<td><span class="status-pill ${statusClass(c.status)}${isSusp?' status-pill-wrapped':''}">${isSusp?`Suspended<br><span style="white-space:nowrap">${parts[1]}</span>`:c.status}</span></td>`}
+  return`<td></td>`;
+}
+function renderSubTD(k,c,loc,lContact,isLast){
+  const lOD=(loc.overdueBalance||0)>0;
+  if(k==="name")return`<td class="col-sticky" style="left:36px;position:sticky"><div class="loc-sub-name"><div style="position:absolute;top:0;bottom:${isLast?'50%':'0'};left:12px;width:1px;background:#C0C0C0;pointer-events:none"></div><div style="position:absolute;top:50%;left:12px;width:12px;height:1px;background:#C0C0C0;pointer-events:none"></div><span class="${lOD?'name-overdue':'name-normal'}" style="font-size:12px">${esc(loc.name)}</span></div></td>`;
+  if(k==="businessType")return`<td><span class="dash">—</span></td>`;
+  if(k==="services")return`<td style="text-align:center">${c.services.map(sv=>`<span class="svc-badge" style="background:${SERVICE_COLORS[sv]}18;color:${SERVICE_COLORS[sv]};border:1px solid ${SERVICE_COLORS[sv]}40">${sv}<span class="tip">${SERVICE_MAP[sv]}</span></span>`).join("")}</td>`;
+  if(k==="labels")return`<td><div style="display:flex;flex-wrap:wrap;gap:2px">${(loc.labels||[]).map(l=>{const lc=LABEL_COLORS[l]||LABEL_COLORS["New Customer"];return`<span class="badge" style="background:${lc.bg};color:${lc.text};border:1px solid ${lc.border}40">${esc(l)}</span>`}).join("")}</div></td>`;
+  if(k==="contact")return`<td><div class="contact-name" style="font-size:12px">${esc(lContact.name)}</div><div class="contact-email">${esc(lContact.email)}</div></td>`;
+  if(k==="locBilling")return`<td></td>`;
+  if(k==="commPref")return`<td><span class="comm-icon">${COMM_PREF[loc.commPref||c.commPref]?.icon||"✉️"}<span class="tip">${COMM_PREF[loc.commPref||c.commPref]?.label||"Email"}</span></span></td>`;
+  if(k==="netTerms")return`<td><span style="font-size:12px;font-weight:500;color:#475569;white-space:nowrap">${loc.netTerms||c.netTerms}</span></td>`;
+  if(["current","31-60","61-90","90+"].includes(k)){const v=(loc.aging||{})[k]||0;return`<td style="text-align:right">${v>0?`<span class="money">${fmt(v)}</span>`:`<span class="dash">—</span>`}</td>`}
+  if(k==="overdueBalance")return`<td style="text-align:right">${lOD?`<span class="money-overdue">${fmt(loc.overdueBalance)}</span>`:`<span class="dash">—</span>`}</td>`;
+  if(k==="failedPayment")return`<td></td>`;
+  if(k==="openBalance")return`<td style="text-align:right">${(loc.openBalance||0)>0?`<span class="money-open">${fmt(loc.openBalance)}</span>`:`<span class="dash">—</span>`}</td>`;
+  if(k==="creditBalance")return`<td style="text-align:right">${(loc.creditBalance||0)>0?`<span class="money-credit">${fmt(loc.creditBalance)}</span>`:`<span class="dash">—</span>`}</td>`;
+  if(k==="paymentPolicy")return`<td><span style="font-size:11px;color:#475569;white-space:nowrap">${loc.paymentPolicy?esc(loc.paymentPolicy):`<span class="dash">—</span>`}</span></td>`;
+  if(k==="lastNote")return`<td><div class="note-cell"><div class="note-text">${esc(loc.lastNote||'')}</div><div class="note-date">${loc.noteDate||''}</div></div></td>`;
+  if(k==="status")return`<td><span class="location-status-badge ${({Active:'ls-active',Inactive:'ls-inactive',Hold:'ls-hold','Do Not Service':'ls-dns'}[loc.status]||'ls-inactive')}">${esc(loc.status)}</span></td>`;
+  return`<td></td>`;
+}
+
+function render(){
+  const filtered=getFiltered();
+  const sorted=getSorted(filtered);
+  const grouped=getGrouped(sorted);
+
+  // Static totals for header (all customers, not filtered)
+  const totalOD=customers.reduce((s,c)=>s+c.overdueBalance,0);
+  const totalOpen=customers.reduce((s,c)=>s+c.openBalance,0);
+  const totalCredit=customers.reduce((s,c)=>s+c.creditBalance,0);
+
+  // Dynamic bucket totals from FILTERED data
+  const bucketTotals=BUCKETS.map(b=>({...b,total:filtered.reduce((s,c)=>s+(c.aging[b.key]||0),0),inv:filtered.reduce((s,c)=>(c.aging[b.key]||0)>0?s+Math.max(1,Math.round(c.invoiceCount*(c.aging[b.key]||0)/Math.max(c.openBalance,1))):s,0),accts:filtered.filter(c=>(c.aging[b.key]||0)>0).length}));
+
+  const activeFC=[state.businessFilter,state.labelFilter,state.serviceFilter,state.commFilter,state.termsFilter,state.statusFilter,state.policyFilter].filter(a=>a.length).length+(state.overdueMin?1:0)+(state.overdueMax?1:0)+(state.daysPastDue?1:0)+(state.collDateFrom?1:0)+(state.collDateTo?1:0)+(state.customerFilter?1:0)+(state.billingContactFilter?1:0);
+  const allSel=filtered.length>0&&filtered.every(c=>state.selectedRows.includes(c.id));
+
+  function chipGroup(label,options,filterKey){
+    return`<div><div class="filter-section-label">${label}</div><div class="chip-row">${options.map(o=>`<button class="chip ${state[filterKey].includes(o)?'active':''}" onclick="toggleFilter('${filterKey}','${o.replace(/'/g,"\\'")}')">${esc(o)}</button>`).join("")}</div></div>`;
+  }
+
+  let h=`
+  <div class="header">
+    <h1>Accounts Receivable</h1>
+    <div class="header-stats">
+      <div><span class="stat-label">Overdue</span><span class="stat-overdue">${fmt(totalOD)}</span></div>
+      <div><span class="stat-label">Open</span><span class="stat-open">${fmt(totalOpen)}</span></div>
+      <div><span class="stat-label">Credit</span><span class="stat-credit">${fmt(totalCredit)}</span></div>
+    </div>
+  </div>
+
+  <div class="bucket-grid">${bucketTotals.map(b=>{
+    const act=state.selectedBucket===b.key;
+    return`<div class="bucket ${b.cls} ${act?'active':''}" onclick="toggleBucket('${b.key}')">
+      <div class="bucket-head">${b.label}</div>
+      <div class="bucket-body">
+        <div class="bucket-row"><div><div class="bucket-val">${fmt(b.total)}</div><div class="bucket-label">Total due</div></div><div style="text-align:right"><div style="font-size:16px;font-weight:700">${b.inv}</div><div class="bucket-label">Invoices</div></div></div>
+        <div class="bucket-footer" style="border-top:1px solid rgba(0,0,0,.08);"><strong>${b.accts}</strong> Accounts</div>
+      </div>
+    </div>`}).join("")}</div>
+
+  <div class="search-row">
+    <div class="toolbar-left">
+      <div class="batch-dropdown-wrap">
+        <select class="batch-dropdown" ${state.selectedRows.length===0?'disabled':''} onchange="handleBatchAction(this)">
+          <option value="">Batch Actions</option>
+          <option value="statement">Send Statement</option>
+          <option value="suspend">Suspend</option>
+          <option value="resume">Resume</option>
+        </select>
+        <svg class="batch-dropdown-arrow ic" width="12" height="12" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      ${state.selectedRows.length?`<span class="batch-sel-count">${state.selectedRows.length} selected</span>`:''}
+    </div>
+    <div class="toolbar-right">
+      <div class="search-wrap"><span class="search-icon">🔍</span><input value="${esc(state.search)}" oninput="setState({search:this.value})" placeholder="Search customers, contacts, emails..."></div>
+      <button class="filter-btn ${state.showFilters||activeFC?'active':''}" onclick="setState({showFilters:!state.showFilters,showColumnPicker:false})">⏷ Filters${activeFC?`<span class="count">${activeFC}</span>`:""}</button>
+      <div class="col-picker-wrap">
+        <button class="filter-btn ${state.showColumnPicker?'active':''}" onclick="setState({showColumnPicker:!state.showColumnPicker,showFilters:false})">⊞ Columns</button>
+        <div class="col-picker-panel ${state.showColumnPicker?'show':''}">
+          <div class="col-picker-header"><span>Show / Hide Columns</span><button onclick="setState({showColumnPicker:false})">✕</button></div>
+          <div class="col-picker-list">
+            ${COLUMNS.map(col=>`<label class="col-picker-item"><input type="checkbox" ${state.columnVisibility[col.key]?'checked':''} onchange="toggleColVis('${col.key}')"><span>${esc(col.pickerLabel)}</span></label>`).join("")}
+          </div>
+        </div>
+      </div>
+      ${(state.selectedBucket||activeFC||state.search)?`<button class="clear-btn" onclick="clearAll()">Clear all</button>`:""}
+    </div>
+  </div>
+
+  <div class="filter-panel ${state.showFilters?'show':''}">
+    <div class="filter-grid">
+      ${chipGroup("Business Type",Object.keys(BUSINESS_COLORS),"businessFilter")}
+      ${chipGroup("Labels",Object.keys(LABEL_COLORS),"labelFilter")}
+      ${chipGroup("Services",Object.keys(SERVICE_MAP),"serviceFilter")}
+    </div>
+    <div class="filter-grid">
+      ${chipGroup("Comm. Preference",Object.keys(COMM_PREF),"commFilter")}
+      ${chipGroup("Net Terms",[...new Set(customers.map(c=>c.netTerms))].sort(),"termsFilter")}
+      ${chipGroup("Status",[...new Set(customers.map(c=>c.status))],"statusFilter")}
+    </div>
+    <div class="filter-grid">
+      ${chipGroup("Payment Policy",[...new Set(customers.map(c=>c.paymentPolicy).filter(Boolean))],"policyFilter")}
+      <div><div class="filter-section-label">Customer</div><input class="filter-text-input" value="${esc(state.customerFilter)}" oninput="setState({customerFilter:this.value})" placeholder="Filter by customer name…"></div>
+      <div><div class="filter-section-label">Billing Contact</div><input class="filter-text-input" value="${esc(state.billingContactFilter)}" oninput="setState({billingContactFilter:this.value})" placeholder="Filter by contact name or email…"></div>
+    </div>
+    <div class="range-row">
+      <div><div class="filter-section-label">Overdue Amount Range</div><div style="display:flex;align-items:center;gap:6px"><input value="${esc(state.overdueMin)}" oninput="setState({overdueMin:this.value})" placeholder="Min $"><span style="color:#94a3b8;font-size:12px">–</span><input value="${esc(state.overdueMax)}" oninput="setState({overdueMax:this.value})" placeholder="Max $"></div></div>
+      <div><div class="filter-section-label">Days Past Due (minimum)</div><input value="${esc(state.daysPastDue)}" oninput="setState({daysPastDue:this.value})" placeholder="e.g. 45"></div>
+    </div>
+  </div>`;
+
+  // Table
+  grouped.forEach(g=>{
+    if(g.label)h+=`<div class="group-header"><span class="glabel">${esc(g.label)}</span><span class="meta">${g.rows.length} accounts · ${fmt(g.rows.reduce((s,c)=>s+c.overdueBalance,0))} overdue</span><div class="line"></div></div>`;
+    const visCols=state.columnOrder.filter(k=>state.columnVisibility[k]).map(k=>COLUMNS.find(c=>c.key===k)).filter(Boolean);
+    h+=`<div class="table-wrap"><div style="overflow-x:auto"><table><thead><tr>
+      <th class="col-sticky" style="width:36px;cursor:default;left:0"><input type="checkbox" ${allSel?"checked":""} onchange="toggleAll()"></th>
+      ${visCols.map(col=>renderTH(col)).join("")}
+      <th style="cursor:default">Actions</th>
+    </tr></thead><tbody>`;
+
+    if(!g.rows.length){h+=`</tbody></table><div class="empty-msg">No accounts match filters</div></div></div>`;return}
+
+    g.rows.forEach(c=>{
+      const isOD=c.overdueBalance>0;const sel=state.selectedRows.includes(c.id);const hasBN=!!c.billingNotes;
+      const locBilling=c.billingAtLocation&&customerLocations[c.id]&&customerLocations[c.id].length>0;
+      h+=`<tr class="${sel?'selected':''}${locBilling&&state.expandedLocations.includes(c.id)?' loc-parent-row':''}">
+        <td class="col-sticky" style="left:0"><input type="checkbox" ${sel?"checked":""} onchange="toggleRow(${c.id})"></td>
+        ${visCols.map(col=>renderTD(col.key,c,locBilling)).join("")}
+        <td style="white-space:nowrap"><div style="display:flex;gap:4px;align-items:center">
+          <button class="action-btn action-btn-view" onclick="event.stopPropagation();openPanel(${c.id},'overview')">View</button>
+          <button class="action-btn action-btn-pay" onclick="event.stopPropagation()">Pay</button>
+          <div class="kebab-wrap">
+            <button class="kebab-btn" onclick="event.stopPropagation();toggleKebab(${c.id})"><svg width="14" height="14" viewBox="0 0 24 24" fill="#64748b"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+            ${state.kebabOpen===c.id?`<div onclick="event.stopPropagation();setState({kebabOpen:null})" style="position:fixed;inset:0;z-index:199"></div><div class="kebab-menu">${c.status==="Active"?`<button class="kebab-item kebab-item-warn" onclick="event.stopPropagation();setState({kebabOpen:null})">Suspend Service</button>`:`<button class="kebab-item" onclick="event.stopPropagation();setState({kebabOpen:null})">Resume Service</button>`}</div>`:''}
+          </div>
+        </div></td>
+      </tr>`;
+      // Nested location rows for location-level billing
+      if(locBilling&&state.expandedLocations.includes(c.id)){
+        const locs=customerLocations[c.id]||[];
+        locs.forEach((loc,li)=>{
+          const isLast=li===locs.length-1;
+          const lOD=(loc.overdueBalance||0)>0;
+          const lContact=loc.contact||c.contact;
+          h+=`<tr class="loc-sub-row">
+            <td class="col-sticky" style="left:0"></td>
+            ${visCols.map(col=>renderSubTD(col.key,c,loc,lContact,isLast)).join("")}
+            <td style="white-space:nowrap"><div style="display:flex;gap:4px;align-items:center">
+              <button class="action-btn action-btn-view" onclick="event.stopPropagation();openPanel(${c.id},'overview',undefined,'${loc.id}')">View</button>
+              <button class="action-btn action-btn-pay" onclick="event.stopPropagation()">Pay</button>
+            </div></td>
+          </tr>`;
+        });
+      }
+    });
+    h+=`</tbody></table></div></div>`;
+  });
+
+  // Side Panel
+  const pc=state.panelCustomerId?customers.find(c=>c.id===state.panelCustomerId):null;
+  const pNotes=pc?(collectionsNotes[pc.id]||[]):[];
+  const filteredPNotes=pNotes.filter(n=>{
+    if(state.panelNoteSearch){const q=state.panelNoteSearch.toLowerCase();if(!n.subject.toLowerCase().includes(q)&&!n.text.toLowerCase().includes(q)&&!n.by.toLowerCase().includes(q))return false}
+    if(state.panelUserFilter!=="all"&&n.by!==state.panelUserFilter)return false;
+    if(state.panelDateFilter!=="all"){const months={Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};const p=n.date.split(" ");const now=new Date();const nd=new Date(now.getFullYear(),months[p[0]],parseInt(p[1]));if(nd>now)nd.setFullYear(nd.getFullYear()-1);const cutoff=new Date(now);cutoff.setDate(cutoff.getDate()-Number(state.panelDateFilter));if(nd<cutoff)return false;}
+    return true;
+  });
+  const pUsers=[...new Set(pNotes.map(n=>n.by))];
+
+  h+=`<div class="panel-overlay ${state.panelOpen?'show':''}" onclick="closePanel()"></div>`;
+  h+=`<div class="panel ${state.panelOpen?'show':''}">`;
+  if(pc){
+    const panelLoc=state.panelLocationId?(customerLocations[pc.id]||[]).find(l=>l.id===state.panelLocationId):null;
+    const locSC=s=>({Active:'ls-active',Inactive:'ls-inactive',Hold:'ls-hold','Do Not Service':'ls-dns'}[s]||'ls-inactive');
+    const phoneIcon='<svg class="ic" width="11" height="11" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.81.36 1.58.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c1.23.34 2 .57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
+    const emailIcon='<svg class="ic" width="11" height="11" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>';
+    h+=`<div class="panel-header">
+      <div class="panel-header-top">
+        <div class="panel-name-block">
+          <div class="panel-title-with-labels">
+            <h2>${esc(pc.name)}</h2>
+            ${pc.labels.map(l=>`<span class="panel-lbl-inline">${esc(l)}</span>`).join("")}
+          </div>
+          <div class="panel-contact-info" style="${panelLoc?'margin-bottom:4px':''}">
+            <a href="mailto:${esc(pc.billingContact.email)}">${emailIcon} ${esc(pc.billingContact.email)}</a>
+            <a href="tel:${esc(pc.billingContact.phone)}">${phoneIcon} ${esc(pc.billingContact.phone)}</a>
+          </div>
+        </div>
+        <div class="panel-header-right">
+          <span class="panel-status ${panelStatusClass(pc.status)}">${pc.status}</span>
+          <button class="close-btn" onclick="closePanel()"><svg class="ic" width="16" height="16" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+      </div>
+      ${panelLoc?`<div style="padding:8px 20px 10px">
+        <div style="background:#F7F7F7;border-radius:10px;padding:12px 16px;display:grid;grid-template-columns:1fr auto;row-gap:4px;align-items:start">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;line-height:20px">THIS LOCATION</div>
+          <div style="line-height:20px;text-align:right"><span class="location-status-badge ${locSC(panelLoc.status)}" style="border:none">${esc(panelLoc.status)}</span></div>
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;line-height:20px">
+            <span style="font-size:14px;font-weight:500;color:#111827">${esc(panelLoc.name)}</span>
+            ${panelLoc.labels.filter(l=>!pc.labels.includes(l)).map(l=>`<span class="panel-lbl-inline">${esc(l)}</span>`).join("")}
+          </div>
+          <div style="grid-row:span 2;display:flex;gap:4px;align-items:center;justify-content:flex-end">
+            <div style="text-align:center;min-width:80px">
+              <div style="font-size:12px;color:#9ca3af">Containers</div>
+              <div style="font-size:13px;font-weight:500;color:#374151">${panelLoc.containers}</div>
+            </div>
+            <div style="text-align:center;min-width:80px">
+              <div style="font-size:12px;color:#9ca3af">Active orders</div>
+              <div style="font-size:13px;font-weight:500;color:#374151">${panelLoc.activeOrders}</div>
+            </div>
+            <div style="text-align:center;min-width:80px">
+              <div style="font-size:12px;color:#9ca3af">Total orders</div>
+              <div style="font-size:13px;font-weight:500;color:#374151">${panelLoc.totalOrders}</div>
+            </div>
+          </div>
+          <div style="line-height:20px"><a href="https://maps.google.com/?q=${encodeURIComponent(panelLoc.address+', '+panelLoc.city)}" target="_blank" style="font-size:12px;color:#185FA5;text-decoration:none">${esc(panelLoc.address)}, ${esc(panelLoc.city)}</a></div>
+        </div>
+      </div>`:''}
+      <div class="panel-tabs">
+        <button class="panel-tab ${state.panelTab==='overview'?'active':''}" onclick="setState({panelTab:'overview',highlightNoteIdx:-1,editingBillingNotes:false,editingAccountNotes:false})">Overview</button>
+        <button class="panel-tab ${state.panelTab==='contacts'?'active':''}" onclick="setState({panelTab:'contacts',addingContact:false,editingContactId:null})">Contacts</button>
+        <button class="panel-tab ${state.panelTab==='payments'?'active':''}" onclick="setState({panelTab:'payments',addingCard:false,editingCardId:null,panelCardSearch:''})">Credit Cards</button>
+        <button class="panel-tab ${state.panelTab==='activity'?'active':''}" onclick="setState({panelTab:'activity'})">Collection Activity (${pNotes.length})</button>
+        ${!state.panelLocationId?`<button class="panel-tab ${state.panelTab==='locations'?'active':''}" onclick="setState({panelTab:'locations',panelLocationSearch:''})">Locations</button>`:''}
+      </div>
+    </div>`;
+
+    // ── OVERVIEW TAB ──────────────────────────────────────────────────────────
+    if(state.panelTab==='overview'){
+      const pol=customerPolicies[pc.id]||{};
+      const billingNotes=state.contactsData[pc.id+'_bn']!==undefined?state.contactsData[pc.id+'_bn']:pc.billingNotes;
+      const accountNotes=state.contactsData[pc.id+'_an']!==undefined?state.contactsData[pc.id+'_an']:pc.accountNotes;
+      h+=`<div class="panel-tab-body"><div class="panel-scroll"><div class="overview-inner">`;
+
+      // Aging buckets
+      h+=`<div>
+        <div class="sh blue" style="margin-bottom:10px"><svg class="ic" width="14" height="14" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg><h3>Aging</h3></div>
+        <div class="mini-bucket-grid">
+          ${BUCKETS.map(b=>{
+            const v=pc.aging[b.key]||0;
+            const inv=v>0?Math.max(1,Math.round(pc.invoiceCount*(v/Math.max(pc.openBalance,1)))):0;
+            return`<div class="mini-bucket ${b.cls}">
+              <div class="mini-bucket-head">${b.label}</div>
+              <div class="mini-bucket-body">
+                <div class="mini-bucket-val">${v>0?fmt(v):'$0.00'}</div>
+                <div class="mini-bucket-sub">${inv} invoice${inv!==1?'s':''}</div>
+              </div>
+            </div>`;
+          }).join("")}
+        </div>
+      </div>`;
+
+      // Payment Policy
+      h+=`<div>
+        <div class="sh gray" style="margin-bottom:10px"><svg class="ic" width="14" height="14" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><h3>Payment Policy</h3></div>
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px">
+          ${pol.name?`<div style="font-size:13px;font-weight:600;color:#111827;margin-bottom:12px">${esc(pol.name)}</div>`:''}
+          <div class="policy-grid">
+            <div><div class="policy-label">Billing Frequency</div><div class="policy-value">${esc(pol.billingFrequency||'—')}</div></div>
+            <div><div class="policy-label">Invoice Generation</div><div class="policy-value">${esc(pol.invoiceGeneration||'—')}</div></div>
+            <div><div class="policy-label">Payment Due</div><div class="policy-value">${esc(pol.paymentDue||'—')}</div></div>
+            <div><div class="policy-label">Credit Terms</div><div class="policy-value">${esc(pol.creditTerms||'—')}</div></div>
+            <div><div class="policy-label">Payment Method</div><div class="policy-value">${esc(pol.paymentMethod||'—')}</div></div>
+            <div><div class="policy-label">Invoice Delivery</div><div class="policy-value">${esc(pol.invoiceDeliveryMethod||'—')}</div></div>
+          </div>
+        </div>
+      </div>`;
+
+
+      // Billing Notes — location side sheet vs customer account side sheet
+      if(state.panelLocationId){
+        // Location side sheet: two sections with divider
+        h+=`<div style="border:0.5px solid #d0d0d0;border-radius:8px;overflow:hidden">
+          <div style="background:#f9fafb;padding:8px 16px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">Billing Notes</span>
+            ${state.editingBillingNotes
+              ?`<button class="notes-edit-btn" onclick="setState({editingBillingNotes:false})">Cancel</button>`
+              :`<button class="notes-edit-btn" style="font-size:12px;color:#9ca3af" onclick="setState({editingBillingNotes:true,tempBillingNotes:${JSON.stringify(billingNotes||'')}})">Edit</button>`}
+          </div>
+          <div style="padding:12px 16px 14px">
+            <div style="font-size:11px;color:#9ca3af;margin-bottom:5px">Location</div>
+            ${state.editingBillingNotes
+              ?`<textarea class="notes-textarea" rows="4" oninput="state.tempBillingNotes=this.value" placeholder="Add billing notes...">${esc(state.tempBillingNotes)}</textarea>
+                 <div class="notes-save-row"><button class="cbtn" onclick="setState({editingBillingNotes:false})">Cancel</button><button class="sbtn" onclick="saveBillingNotes(${pc.id})">Save</button></div>`
+              :`<div style="font-size:13px;color:#111827;line-height:1.6;white-space:pre-wrap">${billingNotes?esc(billingNotes):`<span class="notes-empty">No billing notes</span>`}</div>`}
+          </div>
+          <div style="height:0.5px;background:#D0D0D0;margin:0 16px"></div>
+          <div style="padding:12px 16px 14px">
+            <div style="font-size:11px;color:#9ca3af;margin-bottom:5px">Account</div>
+            <div style="font-size:13px;color:#6b7280;line-height:1.6;white-space:pre-wrap">${accountNotes?esc(accountNotes):`<span class="notes-empty">No account notes</span>`}</div>
+          </div>
+        </div>`;
+      } else {
+        // Customer account side sheet: header + note only, no labels or divider
+        h+=`<div style="border:0.5px solid #d0d0d0;border-radius:8px;overflow:hidden">
+          <div style="background:#f9fafb;padding:8px 16px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">Billing Notes</span>
+            ${state.editingBillingNotes
+              ?`<button class="notes-edit-btn" onclick="setState({editingBillingNotes:false})">Cancel</button>`
+              :`<button class="notes-edit-btn" style="font-size:12px;color:#9ca3af" onclick="setState({editingBillingNotes:true,tempBillingNotes:${JSON.stringify(billingNotes||'')}})">Edit</button>`}
+          </div>
+          <div style="padding:12px 16px 14px">
+            ${state.editingBillingNotes
+              ?`<textarea class="notes-textarea" rows="4" oninput="state.tempBillingNotes=this.value" placeholder="Add billing notes...">${esc(state.tempBillingNotes)}</textarea>
+                 <div class="notes-save-row"><button class="cbtn" onclick="setState({editingBillingNotes:false})">Cancel</button><button class="sbtn" onclick="saveBillingNotes(${pc.id})">Save</button></div>`
+              :`<div style="font-size:13px;color:#374151;line-height:1.6;white-space:pre-wrap">${billingNotes?esc(billingNotes):`<span class="notes-empty">No billing notes</span>`}</div>`}
+          </div>
+        </div>`;
+      }
+
+      // Account Notes
+      h+=`<div style="border:0.5px solid #d0d0d0;border-radius:8px;overflow:hidden">
+        <div style="background:#f9fafb;padding:8px 16px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">Account Notes</span>
+          ${state.editingAccountNotes
+            ?`<button class="notes-edit-btn" onclick="setState({editingAccountNotes:false})">Cancel</button>`
+            :`<button class="notes-edit-btn" style="font-size:12px;color:#9ca3af" onclick="setState({editingAccountNotes:true,tempAccountNotes:${JSON.stringify(accountNotes||'')}})">Edit</button>`}
+        </div>
+        <div style="padding:12px 16px 14px">
+          ${state.editingAccountNotes
+            ?`<textarea class="notes-textarea" rows="4" oninput="state.tempAccountNotes=this.value" placeholder="Add account notes...">${esc(state.tempAccountNotes)}</textarea>
+               <div class="notes-save-row"><button class="cbtn" onclick="setState({editingAccountNotes:false})">Cancel</button><button class="sbtn" onclick="saveAccountNotes(${pc.id})">Save</button></div>`
+            :`<div style="font-size:13px;color:#374151;line-height:1.6;white-space:pre-wrap">${accountNotes?esc(accountNotes):`<span class="notes-empty">No account notes</span>`}</div>`}
+        </div>
+      </div>`;
+
+      h+=`</div></div></div>`;
+    }
+
+    // ── CONTACTS TAB ──────────────────────────────────────────────────────────
+    else if(state.panelTab==='contacts'){
+      const allContacts=(customerContacts[pc.id]||[]).map(ct=>{
+        const override=state.contactsData[pc.id+'_ct_'+ct.id];
+        return override!==undefined?override:ct;
+      });
+      const addedContacts=(state.contactsData[pc.id+'_added']||[]);
+      const combinedContacts=[...allContacts,...addedContacts];
+      const q=state.contactSearch.toLowerCase();
+      const visibleContacts=q?combinedContacts.filter(ct=>ct.name.toLowerCase().includes(q)||ct.title.toLowerCase().includes(q)||ct.email.toLowerCase().includes(q)||ct.phone.includes(q)):combinedContacts;
+      const pinnedContacts=visibleContacts.filter(ct=>ct.pinned&&!ct.disabled);
+      const regularContacts=visibleContacts.filter(ct=>!ct.pinned&&!ct.disabled);
+      const disabledContacts=visibleContacts.filter(ct=>ct.disabled);
+
+      const pinIcon='<svg class="ic" width="10" height="10" viewBox="0 0 24 24" style="stroke:#2563eb;fill:none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>';
+
+      h+=`<div class="panel-tab-body" style="overflow:hidden;display:flex;flex-direction:column">`;
+
+      // Toolbar: search + add button (hide Add Contact button when form is open)
+      h+=`<div class="contacts-toolbar">
+        <div class="contacts-search-wrap">
+          <svg class="ic" width="13" height="13" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="contacts-search-input" placeholder="Search contacts..." value="${esc(state.contactSearch)}" oninput="setState({contactSearch:this.value})">
+        </div>
+        ${!state.addingContact?`<button class="tab-add-btn" onclick="setState({addingContact:true,editingContactId:null,contactSearch:''})"><svg class="ic" width="12" height="12" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Contact</button>`:''}
+      </div>`;
+
+      // Add contact form (above list, count below form)
+      if(state.addingContact){
+        h+=`<div class="add-contact-form">
+          <div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:10px">New Contact</div>
+          <div class="fc-grid" style="margin-bottom:8px">
+            <input id="nc-name" placeholder="Full name">
+            <input id="nc-title" placeholder="Title / Role">
+            <input id="nc-phone" placeholder="000-000-0000" oninput="fmtPhoneInput(this)" maxlength="12">
+            <input id="nc-email" placeholder="Email address">
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;color:#9ca3af">${combinedContacts.length} contact${combinedContacts.length!==1?'s':''}</span>
+            <div style="display:flex;gap:6px">
+              <button class="cbtn" onclick="setState({addingContact:false})">Cancel</button>
+              <button class="sbtn" onclick="addNewContact(${pc.id})">Add Contact</button>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      h+=`<div class="panel-scroll">`;
+      const renderContact=(ct)=>{
+        const initials=ct.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+        const isEditing=state.editingContactId===ct.id;
+        const inputStyle='font-size:12px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:5px;outline:none;font-family:inherit;width:100%';
+        if(isEditing){
+          return`<div class="contact-row" style="background:#f0f6ff;border-left:3px solid #2563eb">
+            <div class="contact-avatar">${initials}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:11px;font-weight:600;color:#2563eb;margin-bottom:8px">Edit Contact</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+                <input id="ec2-name" value="${esc(ct.name)}" placeholder="Full name" style="${inputStyle}">
+                <input id="ec2-title" value="${esc(ct.title)}" placeholder="Title" style="${inputStyle}">
+                <input id="ec2-phone" value="${esc(ct.phone+(ct.ext?' ext. '+ct.ext:''))}" placeholder="000-000-0000" oninput="fmtPhoneInput(this)" maxlength="16" style="${inputStyle}">
+                <input id="ec2-email" value="${esc(ct.email)}" placeholder="Email" style="${inputStyle}">
+              </div>
+              <div style="display:flex;justify-content:flex-end;gap:6px">
+                <button class="cbtn" onclick="setState({editingContactId:null})">Cancel</button>
+                <button class="sbtn" onclick="saveContactEdit(${pc.id},'${ct.id}')">Save</button>
+              </div>
+            </div>
+          </div>`;
+        }
+        return`<div class="contact-row ${ct.pinned?'pinned':''} ${ct.disabled?'disabled':''}">
+          <div class="contact-avatar" style="${ct.pinned?'border:2px solid #bfdbfe;':''}">${initials}</div>
+          <div style="flex:1;min-width:0">
+            <div class="contact-name-row">
+              <span class="contact-name">${esc(ct.name)}</span>
+              ${ct.pinned?`<span class="contact-pin-badge">${pinIcon} ${esc(ct.role)}</span>`:''}
+            </div>
+            <div class="contact-role">${esc(ct.title)}</div>
+            <div class="contact-info-row">
+              <a href="tel:${esc(ct.phone)}">${phoneIcon} ${esc(ct.phone)}${ct.ext?` ext. ${esc(ct.ext)}`:''}</a>
+              <a href="mailto:${esc(ct.email)}" class="email-link">${emailIcon} ${esc(ct.email)}</a>
+            </div>
+          </div>
+          <div class="contact-row-actions">
+            ${!ct.pinned?`<button class="contact-act-btn" onclick="pinContact(${pc.id},'${ct.id}')">Pin</button>`:`<button class="contact-act-btn" style="color:#2563eb" onclick="pinContact(${pc.id},'${ct.id}')">Unpin</button>`}
+            <button class="contact-act-btn" onclick="setState({editingContactId:'${ct.id}',addingContact:false})">Edit</button>
+            <button class="contact-act-btn danger" onclick="toggleContactDisabled(${pc.id},'${ct.id}')">${ct.disabled?'Enable':'Disable'}</button>
+          </div>
+        </div>`;
+      };
+
+      if(pinnedContacts.length) pinnedContacts.forEach(ct=>{h+=renderContact(ct)});
+      if(regularContacts.length){
+        if(pinnedContacts.length) h+=`<div class="section-divider">Other Contacts</div>`;
+        regularContacts.forEach(ct=>{h+=renderContact(ct)});
+      }
+      if(disabledContacts.length){
+        h+=`<div class="section-divider">Disabled</div>`;
+        disabledContacts.forEach(ct=>{h+=renderContact(ct)});
+      }
+      if(!visibleContacts.length) h+=`<div class="empty-msg">${q?'No contacts match your search.':'No contacts yet.'}</div>`;
+      if(!state.addingContact) h+=`<div style="padding:10px 20px;font-size:11px;color:#9ca3af">${combinedContacts.length} contact${combinedContacts.length!==1?'s':''}</div>`;
+      h+=`</div></div>`;
+    }
+
+    // ── PAYMENT METHODS TAB ───────────────────────────────────────────────────
+    else if(state.panelTab==='payments'){
+      const pcCards=getCards(pc.id);
+      const nowY=(new Date()).getFullYear(),nowM=(new Date()).getMonth()+1;
+      const isExpired=c=>c.expYear<nowY||(c.expYear===nowY&&c.expMonth<nowM);
+      const brandCls=b=>({Visa:'cb-visa',Mastercard:'cb-mc',Amex:'cb-amex',Discover:'cb-disc'}[b]||'cb-visa');
+      const cardQ=state.panelCardSearch.toLowerCase();
+      const filteredCards=cardQ?pcCards.filter(c=>c.brand.toLowerCase().includes(cardQ)||c.last4.includes(cardQ)||c.name.toLowerCase().includes(cardQ)):pcCards;
+      h+=`<div class="panel-tab-body" style="overflow:hidden;display:flex;flex-direction:column">`;
+      h+=`<div class="contacts-toolbar">
+        <div class="contacts-search-wrap">
+          <svg class="ic" width="13" height="13" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="contacts-search-input" placeholder="Search cards..." value="${esc(state.panelCardSearch)}" oninput="setState({panelCardSearch:this.value})">
+        </div>
+        ${!state.addingCard&&!state.editingCardId?`<button class="tab-add-btn" onclick="setState({addingCard:true,editingCardId:null,tempCardDefault:false})"><svg class="ic" width="12" height="12" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Card</button>`:''}
+      </div>`;
+      h+=`<div class="panel-scroll" style="padding:12px 20px">`;
+      if(state.addingCard){h+=`<div class="card-form">
+        <div style="font-size:11px;font-weight:600;color:#2563eb;margin-bottom:8px">Add Card</div>
+        <div class="card-form-grid">
+          <select id="card-brand"><option>Visa</option><option>Mastercard</option><option>Amex</option><option>Discover</option></select>
+          <input id="card-last4" placeholder="Last 4 digits" maxlength="4" oninput="this.value=this.value.replace(/\\D/g,'')">
+          <input id="card-month" placeholder="MM (exp)" maxlength="2">
+          <input id="card-year" placeholder="YYYY (exp)" maxlength="4">
+          <input id="card-name" placeholder="Cardholder name" style="grid-column:span 2">
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;margin-bottom:10px;cursor:pointer"><input type="checkbox" ${state.tempCardDefault?'checked':''} onchange="state.tempCardDefault=this.checked"> Set as default</label>
+        <div style="display:flex;justify-content:flex-end;gap:6px"><button class="cbtn" onclick="setState({addingCard:false})">Cancel</button><button class="sbtn" onclick="addCard(${pc.id})">Save Card</button></div>
+      </div>`;}
+      if(!pcCards.length&&!state.addingCard){h+=`<div class="empty-msg">No cards on file.</div>`}
+      else if(!filteredCards.length&&!state.addingCard){h+=`<div class="empty-msg">No cards match your search.</div>`}
+      else{filteredCards.forEach(card=>{
+        const expired=isExpired(card);
+        if(state.editingCardId===card.id){h+=`<div class="card-form">
+          <div style="font-size:11px;font-weight:600;color:#2563eb;margin-bottom:8px">Edit Card</div>
+          <div class="card-form-grid">
+            <select id="card-brand">${['Visa','Mastercard','Amex','Discover'].map(b=>`<option ${card.brand===b?'selected':''}>${b}</option>`).join('')}</select>
+            <input id="card-last4" placeholder="Last 4 digits" maxlength="4" value="${card.last4}" oninput="this.value=this.value.replace(/\\D/g,'')">
+            <input id="card-month" placeholder="MM (exp)" maxlength="2" value="${card.expMonth}">
+            <input id="card-year" placeholder="YYYY (exp)" maxlength="4" value="${card.expYear}">
+            <input id="card-name" placeholder="Cardholder name" style="grid-column:span 2" value="${esc(card.name)}">
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;margin-bottom:10px;cursor:pointer"><input type="checkbox" ${state.tempCardDefault?'checked':''} onchange="state.tempCardDefault=this.checked"> Set as default</label>
+          <div style="display:flex;justify-content:flex-end;gap:6px"><button class="cbtn" onclick="setState({editingCardId:null})">Cancel</button><button class="sbtn" onclick="saveEditCard(${pc.id},'${card.id}')">Save</button></div>
+        </div>`;}
+        else{h+=`<div class="card-item">
+          <span class="card-brand-pill ${brandCls(card.brand)}">${card.brand}</span>
+          <div class="card-meta">
+            <div class="card-num">•••• ${card.last4}${card.isDefault?`<span class="card-default-badge">Default</span>`:''}</div>
+            <div class="card-sub ${expired?'card-exp-warn':''}">${card.name?esc(card.name)+' · ':''}<span>Exp ${card.expMonth}/${card.expYear}${expired?' · Expired':''}</span></div>
+          </div>
+          <div class="card-acts">
+            ${!card.isDefault?`<button class="contact-act-btn" onclick="setDefaultCard(${pc.id},'${card.id}')">Set default</button>`:''}
+            <button class="contact-act-btn" onclick="startEditCard(${pc.id},'${card.id}')">Edit</button>
+            <button class="contact-act-btn danger" onclick="deleteCard(${pc.id},'${card.id}')">Delete</button>
+          </div>
+        </div>`;}
+      });}
+      h+=`</div></div>`;
+    }
+
+    // ── COLLECTION ACTIVITY TAB ───────────────────────────────────────────────
+    else if(state.panelTab==='activity'){
+      h+=`<div class="panel-tab-body">
+        <div class="act-search"><div class="act-sr">
+          <div class="act-siw"><svg class="ic" width="14" height="14" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" class="act-si" placeholder="Search collection notes..." value="${esc(state.panelNoteSearch)}" oninput="setState({panelNoteSearch:this.value})"></div>
+          <button class="act-fb ${state.panelShowFilters?'active':''}" onclick="setState({panelShowFilters:!state.panelShowFilters})"><svg class="ic" width="12" height="12" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg> Filters</button>
+        </div></div>
+        ${state.panelShowFilters?`<div class="act-fp">
+          <div style="display:flex;align-items:center;gap:8px"><span class="fl">Date:</span><div class="act-fps">
+            ${["all","7","30"].map(v=>`<button class="act-fpl ${state.panelDateFilter===v?'active':''}" onclick="setState({panelDateFilter:'${v}'})">${{all:"All time","7":"Last 7 days","30":"Last 30 days"}[v]}</button>`).join("")}
+          </div></div>
+          <div style="width:1px;height:16px;background:#e5e7eb"></div>
+          <div style="display:flex;align-items:center;gap:8px"><span class="fl">User:</span><select class="act-fsel" onchange="setState({panelUserFilter:this.value})"><option value="all">All users</option>${pUsers.map(u=>`<option value="${esc(u)}" ${state.panelUserFilter===u?'selected':''}>${esc(u)}</option>`).join("")}</select></div>
+        </div>`:""}
+        <div class="act-nl">`;
+      if(!filteredPNotes.length){h+=`<div class="empty-msg">No notes match your filters.</div>`}
+      else{
+        const fileIcon='<svg class="ic" width="14" height="14" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+        filteredPNotes.forEach((n,i)=>{
+          const isHL=state.highlightNoteIdx===i;
+          h+=`<div class="nc${isHL?' highlight':''}" id="hl-note-${i}">
+            <div class="niw">${fileIcon}</div>
+            <div class="nb"><div class="ns">${esc(n.subject)}</div><div class="nd">${esc(n.text)}</div></div>
+            <div class="nm"><div><div class="na">${esc(n.by)}</div><div class="ndt">${n.date} · ${n.time}</div></div></div>
+          </div>`;
+        });
+      }
+      h+=`</div></div>`;
+    }
+
+    // ── LOCATIONS TAB ─────────────────────────────────────────────────────────
+    else if(state.panelTab==='locations'){
+      const locs=customerLocations[pc.id]||[];
+      const locQ=state.panelLocationSearch.toLowerCase();
+      const filteredLocs=locQ?locs.filter(l=>l.name.toLowerCase().includes(locQ)||l.address.toLowerCase().includes(locQ)||l.city.toLowerCase().includes(locQ)):locs;
+      const locStatusClass=(s)=>({Active:'ls-active',Inactive:'ls-inactive',Hold:'ls-hold','Do Not Service':'ls-dns'}[s]||'ls-inactive');
+      h+=`<div class="panel-tab-body" style="overflow:hidden;display:flex;flex-direction:column">`;
+      h+=`<div class="contacts-toolbar">
+        <div class="contacts-search-wrap">
+          <svg class="ic" width="13" height="13" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="contacts-search-input" placeholder="Search locations..." value="${esc(state.panelLocationSearch)}" oninput="setState({panelLocationSearch:this.value})">
+        </div>
+      </div>`;
+      h+=`<div class="panel-scroll" style="padding:14px 20px">`;
+      if(!locs.length){h+=`<div class="empty-msg">No locations found.</div>`}
+      else if(!filteredLocs.length){h+=`<div class="empty-msg">No locations match your search.</div>`}
+      else{
+        filteredLocs.forEach(loc=>{
+          const locOnlyLabels=loc.labels.filter(l=>!pc.labels.includes(l));
+          h+=`<div class="loc-card">
+            <div class="loc-card-header">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;min-width:0">
+                <div class="loc-card-name">${esc(loc.name)}</div>
+                ${locOnlyLabels.map(l=>{const lc=LABEL_COLORS[l]||LABEL_COLORS["New Customer"];return`<span class="badge" style="background:${lc.bg};color:${lc.text};border:1px solid ${lc.border}40">${esc(l)}</span>`}).join("")}
+              </div>
+              <span class="location-status-badge ${locStatusClass(loc.status)}" style="flex-shrink:0">${esc(loc.status)}</span>
+            </div>
+            <a class="loc-card-addr" href="https://maps.google.com/?q=${encodeURIComponent(loc.address+', '+loc.city)}" target="_blank">${esc(loc.address)}, ${esc(loc.city)}</a>
+            <div class="loc-card-stats">
+              <span><span class="loc-card-stat-val">${loc.containers}</span> containers</span>
+              <span><span class="loc-card-stat-val">${loc.activeOrders}</span> active orders</span>
+              <span><span class="loc-card-stat-val">${loc.totalOrders}</span> total orders</span>
+            </div>
+          </div>`;
+        });
+      }
+      h+=`</div></div>`;
+    }
+
+    // ── STICKY BOTTOM BAR ─────────────────────────────────────────────────────
+    h+=`<div class="panel-sticky">
+      <button class="panel-pay-btn">Take Payment</button>
+      <button class="panel-addnote-btn" onclick="setState({panelAddOpen:!state.panelAddOpen})">
+        <svg class="ic" width="14" height="14" viewBox="0 0 24 24" style="stroke:currentColor"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Note
+      </button>
+    </div>`;
+    // Add note flyup
+    if(state.panelAddOpen){
+      h+=`<div class="ano" style="position:absolute;bottom:56px;left:0;right:0"><h4>New Collection Note</h4><input type="text" placeholder="Subject"><textarea rows="3" placeholder="Add details..."></textarea><div class="ano-acts"><button class="cbtn" onclick="setState({panelAddOpen:false})">Cancel</button><button class="sbtn" onclick="setState({panelAddOpen:false})">Save</button></div></div>`;
+    }
+  }
+  h+=`</div>`;
+
+  const _scrollEls=[...document.querySelectorAll('.table-wrap > div')];
+  const _scrollX=_scrollEls.map(el=>el.scrollLeft);
+  const _panelScroll=document.querySelector('.panel-scroll');
+  const _panelY=_panelScroll?_panelScroll.scrollTop:0;
+  document.getElementById("app").innerHTML=h;
+  document.querySelectorAll('.table-wrap > div').forEach((el,i)=>{if(i<_scrollX.length)el.scrollLeft=_scrollX[i];});
+  const _newPanel=document.querySelector('.panel-scroll');
+  if(_newPanel)_newPanel.scrollTop=_panelY;
+}
+
+function setState(p){Object.assign(state,p);render()}
+function toggleBucket(k){setState({selectedBucket:state.selectedBucket===k?null:k})}
+function doSort(k){if(state.sortKey===k){if(state.sortDir==="asc")setState({sortDir:"desc"});else setState({sortKey:"",sortDir:"asc"})}else setState({sortKey:k,sortDir:"asc"})}
+function toggleRow(id){setState({selectedRows:toggleArr(state.selectedRows,id)})}
+function toggleAll(){const f=getFiltered();setState({selectedRows:f.every(c=>state.selectedRows.includes(c.id))?[]:f.map(c=>c.id)})}
+function toggleFilter(key,val){const o={};o[key]=toggleArr(state[key],val);setState(o)}
+function toggleLocationExpand(id){setState({expandedLocations:toggleArr(state.expandedLocations,id)})}
+function toggleKebab(id){setState({kebabOpen:state.kebabOpen===id?null:id})}
+function saveContact(id){const c=customers.find(x=>x.id===id);if(c){c.contact={name:document.getElementById("ec-name").value,email:document.getElementById("ec-email").value,phone:document.getElementById("ec-phone").value}}setState({editingContact:null})}
+function handleBatchAction(sel){if(!sel.value)return;const action=sel.value;sel.value='';const names=customers.filter(c=>state.selectedRows.includes(c.id)).map(c=>c.name);alert(action==='statement'?`Send Statement to:\n${names.join('\n')}`:action==='suspend'?`Suspend:\n${names.join('\n')}`:action==='resume'?`Resume:\n${names.join('\n')}`:'');}
+function clearAll(){setState({selectedBucket:null,businessFilter:[],labelFilter:[],serviceFilter:[],commFilter:[],termsFilter:[],statusFilter:[],policyFilter:[],overdueMin:"",overdueMax:"",daysPastDue:"",search:"",collDateFrom:"",collDateTo:"",customerFilter:"",billingContactFilter:""})}
+function fmtPhoneInput(el){let v=el.value.replace(/\D/g,'');if(v.length>10)v=v.slice(0,10);let f='';if(v.length>0)f=v.slice(0,3);if(v.length>3)f+='-'+v.slice(3,6);if(v.length>6)f+='-'+v.slice(6,10);el.value=f}
+function pinContact(cid,ctId){const key=cid+'_ct_'+ctId;const orig=(customerContacts[cid]||[]).find(c=>c.id===ctId)||(state.contactsData[cid+'_added']||[]).find(c=>c.id===ctId)||{};const current=state.contactsData[key]||orig;const o={};o[key]={...current,pinned:!current.pinned,role:!current.pinned?'Contact':''};setState({contactsData:Object.assign({},state.contactsData,o)})}
+function saveBillingNotes(id){const o={};o[id+'_bn']=state.tempBillingNotes;const newData=Object.assign({},state.contactsData,o);setState({contactsData:newData,editingBillingNotes:false})}
+function saveAccountNotes(id){const o={};o[id+'_an']=state.tempAccountNotes;const newData=Object.assign({},state.contactsData,o);setState({contactsData:newData,editingAccountNotes:false})}
+function addNewContact(cid){const name=document.getElementById('nc-name').value.trim();if(!name)return;const phone=document.getElementById('nc-phone').value.trim();const newCt={id:'nc-'+Date.now(),name,title:document.getElementById('nc-title').value.trim(),phone,ext:'',email:document.getElementById('nc-email').value.trim(),pinned:false,role:'',disabled:false};const key=cid+'_added';const existing=state.contactsData[key]||[];const o={};o[key]=[...existing,newCt];setState({contactsData:Object.assign({},state.contactsData,o),addingContact:false})}
+function saveContactEdit(cid,ctId){const name=document.getElementById('ec2-name').value.trim();if(!name)return;const phoneRaw=document.getElementById('ec2-phone').value.trim();const phone=phoneRaw.replace(/\s*ext\.?\s*(\d+)/i,'').trim();const ext=(phoneRaw.match(/ext\.?\s*(\d+)/i)||[])[1]||'';const key=cid+'_ct_'+ctId;const o={};const orig=(customerContacts[cid]||[]).find(c=>c.id===ctId)||{};o[key]={...orig,name,title:document.getElementById('ec2-title').value.trim(),phone,ext,email:document.getElementById('ec2-email').value.trim()};setState({contactsData:Object.assign({},state.contactsData,o),editingContactId:null})}
+function toggleContactDisabled(cid,ctId){const key=cid+'_ct_'+ctId;const orig=(customerContacts[cid]||[]).find(c=>c.id===ctId)||{};const current=state.contactsData[key]||orig;const o={};o[key]={...current,disabled:!current.disabled};setState({contactsData:Object.assign({},state.contactsData,o)})}
+
+render();
+</script>
+</body>
+</html>
